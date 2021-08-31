@@ -7,6 +7,6 @@ spec:
   channel: alpha
   installPlanApproval: Automatic
   name: grafana-operator
-  source: community-operators
-  sourceNamespace: openshift-marketplace
+  source: operatorhubio-catalog
+  sourceNamespace: olm
   startingCSV: grafana-operator.v3.5.0

@@ -7,6 +7,6 @@ spec:
   channel: beta
   installPlanApproval: Automatic
   name: prometheus
-  source: community-operators
-  sourceNamespace: openshift-marketplace
+  source: operatorhubio-catalog
+  sourceNamespace: olm
   startingCSV: prometheusoperator.0.37.0
