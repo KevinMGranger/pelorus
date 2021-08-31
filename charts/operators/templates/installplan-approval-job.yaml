@@ -1,54 +1,54 @@
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: installplan-approver
-  annotations:
-    # This is what defines this resource as a hook. Without this line, the
-    # job is considered part of the release.
-    "helm.sh/hook": post-install,post-upgrade
-    "helm.sh/hook-weight": "-5"
-    "helm.sh/hook-delete-policy": hook-succeeded
-spec:
-  template:
-    spec:
-      containers:
-        - image: quay.io/openshift/origin-cli:4.8
-          command:
-            - /bin/bash
-            - -c
-            - |
-              export HOME=/tmp/approver
+# ---
+# apiVersion: batch/v1
+# kind: Job
+# metadata:
+#   name: installplan-approver
+#   annotations:
+#     # This is what defines this resource as a hook. Without this line, the
+#     # job is considered part of the release.
+#     "helm.sh/hook": post-install,post-upgrade
+#     "helm.sh/hook-weight": "-5"
+#     "helm.sh/hook-delete-policy": hook-succeeded
+# spec:
+#   template:
+#     spec:
+#       containers:
+#         - image: quay.io/openshift/origin-cli:4.8
+#           command:
+#             - /bin/bash
+#             - -c
+#             - |
+#               export HOME=/tmp/approver
 
-              echo "Approving operator Install096096
-              Plans.  Waiting a few seconds to make sure the InstallPlan gets created first."
-              sleep 10
-              for subscription in `kubectl get subscription.operators.coreos.com -o name`
-              do 
-                desiredcsv=$(kubectl get $subscription -o jsonpath='{ .spec.startingCSV }')
+#               echo "Approving operator Install096096
+#               Plans.  Waiting a few seconds to make sure the InstallPlan gets created first."
+#               sleep 10
+#               for subscription in `kubectl get subscription.operators.coreos.com -o name`
+#               do 
+#                 desiredcsv=$(kubectl get $subscription -o jsonpath='{ .spec.startingCSV }')
 
-                until [ "$(kubectl get installplan --template="{{ "{{" }} range \$item := .items {{ "}}{{" }} range \$item.spec.clusterServiceVersionNames {{ "}}{{" }} if eq . \"$desiredcsv\" {{ "}}{{" }} printf \"%s\n\" \$item.metadata.name {{ "}}{{end}}{{end}}{{end}}" }}")" != "" ]; do sleep 2; done
+#                 until [ "$(kubectl get installplan --template="{{ "{{" }} range \$item := .items {{ "}}{{" }} range \$item.spec.clusterServiceVersionNames {{ "}}{{" }} if eq . \"$desiredcsv\" {{ "}}{{" }} printf \"%s\n\" \$item.metadata.name {{ "}}{{end}}{{end}}{{end}}" }}")" != "" ]; do sleep 2; done
 
-                installplans=$(kubectl get installplan --template="{{ "{{" }} range \$item := .items {{ "}}{{" }} range \$item.spec.clusterServiceVersionNames {{ "}}{{" }} if eq . \"$desiredcsv\" {{ "}}{{" }} printf \"%s\n\" \$item.metadata.name {{ "}}{{end}}{{end}}{{end}}" }}")
+#                 installplans=$(kubectl get installplan --template="{{ "{{" }} range \$item := .items {{ "}}{{" }} range \$item.spec.clusterServiceVersionNames {{ "}}{{" }} if eq . \"$desiredcsv\" {{ "}}{{" }} printf \"%s\n\" \$item.metadata.name {{ "}}{{end}}{{end}}{{end}}" }}")
 
-                for installplan in $installplans
-                do
-                  if [ "`kubectl get installplan $installplan -o jsonpath="{.spec.approved}"`" == "false" ]; then
+#                 for installplan in $installplans
+#                 do
+#                   if [ "`kubectl get installplan $installplan -o jsonpath="{.spec.approved}"`" == "false" ]; then
 
-                    echo "Approving Subscription $subscription with install plan $installplan"
+#                     echo "Approving Subscription $subscription with install plan $installplan"
 
-                    kubectl patch  installplan $installplan --type=json -p='[{"op":"replace","path": "/spec/approved", "value": true }]'
+#                     kubectl patch  installplan $installplan --type=json -p='[{"op":"replace","path": "/spec/approved", "value": true }]'
 
-                  else
-                    echo "Install Plan '$installplan' already approved"
-                  fi
-                done
-              done
+#                   else
+#                     echo "Install Plan '$installplan' already approved"
+#                   fi
+#                 done
+#               done
 
-          imagePullPolicy: Always
-          name: installplan-approver
-      dnsPolicy: ClusterFirst
-      restartPolicy: OnFailure
-      serviceAccount: installplan-approver-job
-      serviceAccountName: installplan-approver-job
-      terminationGracePeriodSeconds: 30
+#           imagePullPolicy: Always
+#           name: installplan-approver
+#       dnsPolicy: ClusterFirst
+#       restartPolicy: OnFailure
+#       serviceAccount: installplan-approver-job
+#       serviceAccountName: installplan-approver-job
+#       terminationGracePeriodSeconds: 30
