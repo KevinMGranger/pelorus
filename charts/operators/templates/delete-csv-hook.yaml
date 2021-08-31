@@ -18,7 +18,10 @@ spec:
             - /bin/bash
             - -c
             - |
-              oc delete $(oc get csv -o name)
+              csvs=$(kubectl get csv -o name)
+              if [[ ! -z $csvs ]]; then
+                kubectl delete $csvs
+              fi
           imagePullPolicy: Always
           name: installplan-approver
       dnsPolicy: ClusterFirst
