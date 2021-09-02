@@ -2,6 +2,11 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+global:
+  # set this to "openshift" if running in openshift instead of kubernetes
+  cluster_family: kubernetes
+  # cluster_family: openshift
+
 # to reset password: htpasswd -s -b -n internal changeme
 openshift_prometheus_htpasswd_auth: internal:{SHA}+pvrmeQCmtWmYVOZ57uuITVghrM=
 openshift_prometheus_basic_auth_pass: changeme

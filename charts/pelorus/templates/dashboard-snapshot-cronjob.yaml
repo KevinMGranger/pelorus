@@ -1,3 +1,4 @@
+{{- if eq $.Values.global.cluster_family "openshift" }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -60,8 +61,8 @@ spec:
               chmod +x jq
 
               # Grab the information we need to make initial api calls to grafana
-              apikey=$(oc get secrets grafana-apikey -o jsonpath='{.data.key}' | base64 -d)
-              grafana_url=$(oc get route grafana-route -o jsonpath='{.spec.host}')
+              apikey=$(kubectl get secrets grafana-apikey -o jsonpath='{.data.key}' | base64 -d)
+              grafana_url=$(kubectl get route grafana-route -o jsonpath='{.spec.host}')
 
               # Get the dashboard we want to snapshot
               dashboard_search=$(curl -s -k -H "Authorization: Bearer $apikey" "https://${grafana_url}/api/search?query=Software&tag=global&type=dash-db")
@@ -81,3 +82,4 @@ spec:
           terminationGracePeriodSeconds: 30
   schedule: "{{ .Values.snapshot_schedule }}"
   successfulJobsHistoryLimit: 2
+{{- end }}
