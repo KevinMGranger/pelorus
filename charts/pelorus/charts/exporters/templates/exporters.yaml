@@ -1,5 +1,6 @@
+{{- $cluster_family := .Values.global.cluster_family -}}
 {{- range $index, $exporter := .Values.instances }}
-  {{- if eq $.Values.global.cluster_family "openshift" }}
+  {{- if eq $cluster_family "openshift" }}
     {{ include "exporters.buildconfig" $exporter }}
     {{ include "exporters.deploymentconfig" $exporter }}
     {{ include "exporters.imagestream" $exporter }}
@@ -8,5 +9,5 @@
     {{ include "exporters.deployment" $exporter }}
     {{ include "exporters.ingress" $exporter }}
   {{- end }}
-  {{ include "exporters.service" $exporter }}
+  {{ include "exporters.service" (dict "exporter" $exporter "cluster_family" $cluster_family) }}
 {{- end }}

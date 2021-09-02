@@ -1,4 +1,6 @@
-{{- define "exporters.service" }}
+{{- define "exporters.service" -}}
+{{- $cluster_family := get . "cluster_family" -}}
+{{- with (get . "exporter") -}}
 ---
 apiVersion: v1
 kind: Service
@@ -15,10 +17,11 @@ spec:
     targetPort: 8080
   selector:
     app.kubernetes.io/name: {{ .app_name }}
-  {{- if eq $.Values.global.cluster_family "openshift" }}
+  {{- if eq $.cluster_family "openshift" }}
     deploymentconfig: {{ .app_name }}
   {{- else}}
     deployment: {{ .app_name }}
   {{- end }}
   type: ClusterIP
-{{- end }}
+{{- end -}}
+{{- end -}}
