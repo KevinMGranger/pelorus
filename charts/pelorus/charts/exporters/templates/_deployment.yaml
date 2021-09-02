@@ -11,9 +11,10 @@ spec:
   replicas: 1
   revisionHistoryLimit: 10
   selector:
-    app.kubernetes.io/name: {{ .app_name }}
-    app: {{ .app_name }}
-    deployment: {{ .app_name }}
+    matchLabels:
+      app.kubernetes.io/name: {{ .app_name }}
+      app: {{ .app_name }}
+      deployment: {{ .app_name }}
   strategy:
     type: Rolling
   template:
