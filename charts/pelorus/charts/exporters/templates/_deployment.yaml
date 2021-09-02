@@ -25,6 +25,7 @@ spec:
     spec:
       containers:
       - name: {{ .app_name }}
+        image: {{ .app_name }}:latest
         imagePullPolicy: Always
       {{- if .env_from_secrets }}
         envFrom:
