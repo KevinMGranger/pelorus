@@ -8,6 +8,6 @@
   {{- else }}
     {{ include "exporters.deployment" $exporter }}
     {{ include "exporters.ingress" $exporter }}
-  {{- end }}
+  {{- end -}}
   {{ include "exporters.service" (dict "exporter" $exporter "cluster_family" $cluster_family) }}
 {{- end }}
