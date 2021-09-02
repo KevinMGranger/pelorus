@@ -15,8 +15,6 @@ spec:
       app.kubernetes.io/name: {{ .app_name }}
       app: {{ .app_name }}
       deployment: {{ .app_name }}
-  strategy:
-    type: Rolling
   template:
     metadata:
       labels:
