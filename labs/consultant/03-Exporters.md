@@ -46,6 +46,7 @@ In the next few sections, we'll deploy some exporters that collect data in a sim
         extraEnv:
         - name: APP_FILE
           value: deploytime/app.py
+        source_ref: master
         source_url: https://github.com/redhat-cop/pelorus.git
 
 We get the information we need about deploy time from OpenShift, so this exporter works out-of-the-box!
@@ -73,6 +74,7 @@ Update the `values.yaml` and then upgrade our helm installation of Pelorus to ad
         extraEnv:
         - name: APP_FILE
           value: committime/app.py
+        source_ref: master
         source_url: https://github.com/redhat-cop/pelorus.git
 
       helm upgrade pelorus charts/pelorus --namespace pelorus
@@ -112,6 +114,7 @@ Once again, we will update our values.yaml and upgrade our Pelorus deployment.
         extraEnv:
         - name: APP_FILE
           value: failure/app.py
+        source_ref: master
         source_url: https://github.com/redhat-cop/pelorus.git
 
       helm upgrade pelorus charts/pelorus --namespace pelorus

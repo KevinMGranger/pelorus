@@ -1,6 +1,7 @@
 #!/bin/bash
 #Test oc tool
 #Assumes User is logged in to cluster
+set -e
 
 path=$1
 url=$2

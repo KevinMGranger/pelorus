@@ -15,7 +15,7 @@ This track is focused around the development of custom [Prometheus exporters](ht
 
 We use [Helm](https://helm.sh) to provide an automated deployment and configuration experience for Pelorus. We are always doing work to cover more and more complex use cases with our helm charts. In order to be able to effectively contribute to these charts, you'll need a cluster that satisfies all of the installation prerequisites for Pelorus.
 
-See the [Install guide](Install.md) for more details on that.
+See the [Install guide](/page/Install.md) for more details on that.
 
 Currently we have two charts:
 
@@ -46,7 +46,7 @@ This script will use Helm's built-in linter to check whether a version bump is n
 
 ## Dashboard Development
 
-We are continually doing work to enhance and bugfix the Pelorus dashboards. Doing so requires a complete Pelorus stack, including all exporters required to populate a given dashboard. See the [Dashboards](Dashboards.md) user guide for that information.
+We are continually doing work to enhance and bugfix the Pelorus dashboards. Doing so requires a complete Pelorus stack, including all exporters required to populate a given dashboard. See the [Dashboards](/page/Dashboards.md) user guide for that information.
 
 To effectively do dashboard development, you'll likely need at least two browser windows open, one with Grafana, and another with Prometheus for testing queries. Since our dashboards are imported to Grafana via the Grafana Operator, they get imported in read-only mode. Because of this, you'll need to make a copy of it for development purposes.
 
@@ -141,7 +141,7 @@ Running an exporter on your local machine should follow this process:
 
         pip install exporters/
 
-1. Set any environment variables required (or desired) for the given exporter (see [Configuring Exporters](Configuration.md#configuring-exporters) to see supported variables).
+1. Set any environment variables required (or desired) for the given exporter (see [Configuring Exporters](/page/Configuration.md#configuring-exporters) to see supported variables).
 
         export GIT_TOKEN=xxxx
         export GIT_USER=xxxx
@@ -243,8 +243,7 @@ The following are notes and general steps for testing Pull Requests for specific
         git remote add themoosman git@github.com:themoosman/pelorus.git
         git fetch themoosman
         git checkout themoosman/feature-branch
-
-2. [Install Pelorus](Install.md) from checked out fork/branch.
+2. [Install Pelorus](/page/Install.md) from checked out fork/branch.
 
     **NOTE:**
 
@@ -281,7 +280,7 @@ Most exporter changes can be tested locally.
             coverage run -m pytest
             coverage report
 
-1. Gather necessary [configuration information](Configuration.md#configuring-exporters).
+1. Gather necessary [configuration information](/page/Configuration.md#configuring-exporters).
 1. [Run exporter locally](#running-locally). You can do this either via the command line, or use the provided [VSCode debug confuration](#ide-setup-vscode) to run it in your IDE Debugger.
 1. Once exporter is running, you can test it via a simple `curl localhost:8080`. You should be validating that:
     1. You get a valid response with metrics.
@@ -289,7 +288,7 @@ Most exporter changes can be tested locally.
 
 ### Helm Install changes
 
-For testing changes to the helm chart, you should just follow the [standard install process](Install.md), then verify that:
+For testing changes to the helm chart, you should just follow the [standard install process](/page/Install.md), then verify that:
 
 * All expected pods are running and healthy
 * Any expected behavior changes mentioned in the PR can be observed.
@@ -300,47 +299,42 @@ We are in the process of refactoring our helm charts such that they can be teste
 
 The following is a walkthrough of the process we follow to create and manage versioned releases of Pelorus.
 
-1. Update the default exporter tag version to the new tag you're about to make.  
-    In `charts/pelorus/charts/exporters/templates/_buildconfig.yaml`, update the following line accordingly:
-    
-        ref: {{ .source_ref | default "<version>-rc" }}
-
-    You'll also need to bump the `pelorus` chart version in `charts/pelorus/charts/exporters/Chart.yaml`
-
-2. Create a lightweight _release candidate_ tag from the `master` branch. The tag name should be the next sequential [Semantic Version](https://semver.org) with the suffix `-rc`. Then push the new tag to the main repository.
+1. Create a lightweight _release candidate_ tag from the `master` branch. The tag name should be the next sequential [Semantic Version](https://semver.org) with the suffix `-rc`. Then push the new tag to the main repository.
 
         git tag <version>-rc
         git push -u upstream <version>-rc
 
-3. Generate git release notes from the `git log`.
+2. Generate git release notes from the `git log`.
 
         git log <previous tag>..<new tag> --pretty=format:"- %h %s by %an" --no-merges
 
-4. On the [Pelorus releases](https://github.com/redhat-cop/pelorus/releases) page, click **Draft a new release**. 
+3. On the [Pelorus releases](https://github.com/redhat-cop/pelorus/releases) page, click **Draft a new release**. 
     * Select the tag that was pushed in the first step
     * The release _title_ should be `Release candidate for <version>`. 
     * In the main text area, create a `# Release Notes` heading, and then paste in the git log output.
     * Check the box that says **This is a pre-release**.
     * Click **Publish Release**.
-5. Test. Test. Test.
+4. Test. Test. Test.
     * Ensure that all github actions in the repo are passing.
     * Ensure that you can install Pelorus from the tagged version of the code, including all exporters and optional configurations. (Ensure you update the values.yaml file you are using to refer to the tagged version of the code in all builds)
     * Follow the above guidance for testing Pull requests.
-6. If any bugs are found, open PRs to fix them, then create the next -rc tag (e.g. `<version>-rc2`), and start again from step 1.
-7. Update the install version in `docs/Install.md`:
+5. If any bugs are found, open PRs to fix them, then delete the release and tag that was created, and start again from step 1.
+6. Update the default exporter tag version to the new tag you're about to make.  
+    In `charts/pelorus/charts/exporters/templates/_buildconfig.yaml`, update the following line accordingly:
+    
+        ref: {{ .source_ref | default "TAG_HERE" }}
 
-        git clone --depth 1 --branch NEW_VERSION_HERE https://github.com/konveyor/pelorus
+7. Create an annotated tag for the final release with the `-rc` suffix removed.
 
-8. Create an annotated tag for the final release with the `-rc` suffix removed.
-
+        git checkout <version>-rc
         git tag -a <version>
         git push -u upstream <version>
 
-9. Generate git release notes from the `git log`.
+8. Generate git release notes from the `git log`.
 
         git log <previous tag>..<new tag> --pretty=format:"- %h %s by %an" --no-merges
 
-10.  On the [Pelorus releases](https://github.com/redhat-cop/pelorus/releases) page, click **Draft a new release**. 
+9.  On the [Pelorus releases](https://github.com/redhat-cop/pelorus/releases) page, click **Draft a new release**. 
     * Select the tag that was pushed in the previous step.
     * The release _title_ should be `Release <version>`. 
     * In the main text area, create a `# Release Notes` heading, and then paste in the git log output.
