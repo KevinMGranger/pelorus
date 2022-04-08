@@ -25,17 +25,6 @@ CHART_TEST=$(shell which ct)
 SHELLCHECK=$(shell which shellcheck)
 SHELL_SCRIPTS=./scripts/pre-commit ./scripts/setup-pre-commit-hook ./demo/demo-tekton
 
-.PHONY: help
-# tabs below are required for lines starting in @
-help:
-	@printf "%-20s %s\n" "Target" "Description"
-	@printf "%-20s %s\n" "------" "-----------"
-	@make -pqR : 2>/dev/null \
-        | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' \
-        | sort \
-        | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' \
-        | xargs -I _ sh -c 'printf "%-20s " _; make _ -nB | (grep -i "^# Help:" || echo "") | tail -1 | sed "s/^# Help: //g"'
-
 .PHONY: default
 default: \
   dev-env
@@ -43,6 +32,10 @@ default: \
 .PHONY: all
 all: default
 
+## help	print each make target with a description
+.PHONY: help
+help:
+	@(printf "target\tdescription\n---\t---\n"; sed -n 's/^## //p' Makefile) | column -t -s $$'\t'
 
 # Environment setup
 
@@ -70,15 +63,16 @@ git-blame:
 .git/hooks/pre-commit: scripts/pre-commit
 	./scripts/setup-pre-commit-hook
 
+## cli_dev_tools	install all necessary CLI dev tools
 .PHONY: cli_dev_tools
 cli_dev_tools:
 	./scripts/install_dev_tools -v $(PELORUS_VENV)
 
+## dev-env	set up everything needed for development (install tools, set up virtual environment, git configuration)
 dev-env: $(PELORUS_VENV) cli_dev_tools exporters git-blame \
          .git/hooks/pre-commit
 	$(info **** To run VENV: $$source ${PELORUS_VENV}/bin/activate)
 	$(info **** To later deactivate VENV: $$deactivate)
-	@# Help: dev-env: The default action,  will setup your python development environment
 
 # Release
 
@@ -96,8 +90,10 @@ major-release:
 # Formatting
 
 .PHONY: format black isort format-check black-check isort-check
+## format	format all python code
 format: $(PELORUS_VENV) black isort
 
+## format-check	check that all python code is properly formatted
 format-check: $(PELORUS_VENV) black-check isort-check
 
 black: $(PELORUS_VENV)
@@ -121,6 +117,8 @@ isort-check: $(PELORUS_VENV)
 # Linting
 
 .PHONY: lint pylava chart-lint chart-lint-optional shellcheck shellcheck-optional
+
+## lint	lint python code, shell scripts, and helm charts
 lint: pylava chart-lint-optional shellcheck-optional
 
 pylava: $(PELORUS_VENV)
@@ -161,6 +159,7 @@ endif
 
 # Cleanup
 
+## clean-dev-env	remove the virtual environment and clean up all .pyc files
 clean-dev-env:
 	rm -rf ${PELORUS_VENV}
 	find . -iname "*.pyc" -delete
