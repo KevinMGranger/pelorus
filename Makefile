@@ -25,11 +25,21 @@ CHART_TEST=$(shell which ct)
 SHELLCHECK=$(shell which shellcheck)
 SHELL_SCRIPTS=./scripts/pre-commit ./scripts/setup-pre-commit-hook ./demo/demo-tekton
 
+.PHONY: help
+# tabs below are required for lines starting in @
+help:
+	@printf "%-20s %s\n" "Target" "Description"
+	@printf "%-20s %s\n" "------" "-----------"
+	@make -pqR : 2>/dev/null \
+        | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' \
+        | sort \
+        | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' \
+        | xargs -I _ sh -c 'printf "%-20s " _; make _ -nB | (grep -i "^# Help:" || echo "") | tail -1 | sed "s/^# Help: //g"'
 
 .PHONY: default
 default: \
   dev-env
-  
+
 .PHONY: all
 all: default
 
@@ -68,6 +78,7 @@ dev-env: $(PELORUS_VENV) cli_dev_tools exporters git-blame \
          .git/hooks/pre-commit
 	$(info **** To run VENV: $$source ${PELORUS_VENV}/bin/activate)
 	$(info **** To later deactivate VENV: $$deactivate)
+	@# Help: dev-env: The default action,  will setup your python development environment
 
 # Release
 
@@ -85,15 +96,16 @@ major-release:
 # Formatting
 
 .PHONY: format black isort format-check black-check isort-check
-format: $(PELORUS_VENV) black isort 
+format: $(PELORUS_VENV) black isort
 
-format-check: $(PELORUS_VENV) black-check isort-check 
+format-check: $(PELORUS_VENV) black-check isort-check
 
 black: $(PELORUS_VENV)
 	. ${PELORUS_VENV}/bin/activate && \
 	black exporters scripts
 
 black-check: $(PELORUS_VENV)
+	@# Help: Execute black, a python syntax linting tool
 	. ${PELORUS_VENV}/bin/activate && \
 	black --check exporters scripts
 
@@ -135,6 +147,7 @@ chart-lint-optional:
 endif
 
 shellcheck:
+	@# Help: check for spelling errors
 	@echo "🐚 📋 Linting shell scripts with shellcheck"
 	$(SHELLCHECK) $(SHELL_SCRIPTS)
 
