@@ -175,9 +175,9 @@ def generate_metrics(
         for ref in owner_refs:
             full_path = f"{namespace}/{ref.name}"
             logging.debug(
-                "Inspecting owner replica(tion) %s of kind %s, full_path=%s",
+                "Inspecting owner replica(tion) %s of kind %s",
                 ref.name,
-                full_path,
+                ref.kind,
             )
 
             if ref.kind not in supported_replica_objects or already_seen(full_path):
