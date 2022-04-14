@@ -41,13 +41,11 @@ class DeployTimeCollector:
         metrics = generate_metrics(namespaces, self.client)
         for m in metrics:
             logging.info(
-                "Collected deploy_timestamp{namespace=%s, app=%s, image=%s} %s"
-                % (
-                    m.namespace,
-                    m.name,
-                    m.image_sha,
-                    pelorus.convert_date_time_to_timestamp(m.deploy_time),
-                )
+                "Collected deploy_timestamp{namespace=%s, app=%s, image=%s} %s",
+                m.namespace,
+                m.name,
+                m.image_sha,
+                pelorus.convert_date_time_to_timestamp(m.deploy_time),
             )
             metric.add_metric(
                 [m.namespace, m.name, m.image_sha, m.deploy_time],
@@ -137,6 +135,7 @@ def generate_metrics(
     visited_replicas = set()
 
     def already_seen(full_path: str) -> bool:
+        logging.debug("Marking %s as seen", full_path)
         return full_path in visited_replicas
 
     def mark_as_seen(full_path: str):
@@ -160,6 +159,9 @@ def generate_metrics(
         namespace = pod.metadata.namespace
         owner_refs = pod.metadata.ownerReferences
         if namespace not in namespaces or not owner_refs:
+            logging.debug(
+                "Pod %s/%s is either not in watched namespaces or has no owner_refs, skipping"
+            )
             continue
 
         logging.debug(
@@ -171,19 +173,20 @@ def generate_metrics(
         # Get deploytime from the owning controller of the pod.
         # We track all already-visited controllers to not duplicate metrics per-pod.
         for ref in owner_refs:
+            # TODO: this duplicates the name, right?
             full_path = f"{namespace}/{ref.name}"
+            logging.debug(
+                "Inspecting owner replica(tion) %s/%s of kind %s, full_path=%s",
+                ref.metadata.namespace,
+                ref.name,
+                full_path,
+            )
 
             if ref.kind not in supported_replica_objects or already_seen(full_path):
                 continue
 
-            logging.debug(
-                "Getting replica: %s, kind: %s, namespace: %s",
-                ref.name,
-                ref.kind,
-                namespace,
-            )
-
             if not (rc := replicas_dict.get(full_path)):
+                logging.debug("Replica(tion) not found, skipping")
                 continue
 
             mark_as_seen(full_path)
@@ -214,7 +217,11 @@ def generate_metrics(
 def get_replicas(
     dyn_client: DynamicClient, apiVersion: str, objectName: str
 ) -> dict[str, object]:
-    """Process Replicas for given Api Version and Object type (ReplicaSet or ReplicationController)"""
+    """
+    Process Replicas for given Api Version and Object type (ReplicaSet or ReplicationController).
+
+    Maps the full replica name ($namespace/$name) to the replica object itself.
+    """
     try:
         apiResource = dyn_client.resources.get(api_version=apiVersion, kind=objectName)
         replicationobjects = apiResource.get(label_selector=pelorus.get_app_label())
