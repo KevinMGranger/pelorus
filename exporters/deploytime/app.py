@@ -6,7 +6,7 @@ from typing import Iterable, Optional
 
 import attr
 from kubernetes import client
-from openshift.dynamic import DynamicClient
+from openshift.dynamic import DynamicClient, ResourceField
 from openshift.dynamic.exceptions import ResourceNotFoundError
 from prometheus_client import start_http_server
 from prometheus_client.core import REGISTRY, GaugeMetricFamily
@@ -157,7 +157,7 @@ def generate_metrics(
 
     for pod in pods:
         namespace = pod.metadata.namespace
-        owner_refs = pod.metadata.ownerReferences
+        owner_refs: list[ResourceField] = pod.metadata.ownerReferences
         if namespace not in namespaces or not owner_refs:
             logging.debug(
                 "Pod %s/%s is either not in watched namespaces or has no owner_refs, skipping"
@@ -173,11 +173,9 @@ def generate_metrics(
         # Get deploytime from the owning controller of the pod.
         # We track all already-visited controllers to not duplicate metrics per-pod.
         for ref in owner_refs:
-            # TODO: this duplicates the name, right?
             full_path = f"{namespace}/{ref.name}"
             logging.debug(
-                "Inspecting owner replica(tion) %s/%s of kind %s, full_path=%s",
-                ref.metadata.namespace,
+                "Inspecting owner replica(tion) %s of kind %s, full_path=%s",
                 ref.name,
                 full_path,
             )
@@ -216,7 +214,7 @@ def generate_metrics(
 
 def get_replicas(
     dyn_client: DynamicClient, apiVersion: str, objectName: str
-) -> dict[str, object]:
+) -> dict[str, ResourceField]:
     """
     Process Replicas for given Api Version and Object type (ReplicaSet or ReplicationController).
 
