@@ -1,10 +1,10 @@
 import logging
 import os
-from abc import ABC
 from datetime import datetime, timezone
 from typing import Optional, Sequence
 
 from kubernetes import config
+from prometheus_client.registry import Collector
 
 from . import utils
 
@@ -134,18 +134,11 @@ def upgrade_legacy_vars():
         os.environ["GIT_API"] = api
 
 
-def url_joiner(url, path, trailing=None):
+def url_joiner(url, path):
     """Join to sections for a URL and add proper forward slashes"""
     url_link = "/".join(s.strip("/") for s in [url, path])
-    if trailing:
-        url_link += "/"
     return url_link
 
 
-class AbstractPelorusExporter(ABC):
-    """
-    Base class for PelorusExporter
-    """
-
-    def __init_():
-        pass
+class AbstractPelorusExporter(Collector):
+    pass

@@ -16,7 +16,7 @@ import pelorus
 supported_replica_objects = {"ReplicaSet", "ReplicationController"}
 
 
-class DeployTimeCollector:
+class DeployTimeCollector(pelorus.AbstractPelorusExporter):
     _namespaces: set[str]
 
     def __init__(
