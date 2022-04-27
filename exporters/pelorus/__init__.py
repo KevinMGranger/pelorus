@@ -21,23 +21,28 @@ DEFAULT_TRACKER_APP_FIELD = "u_application"
 
 
 # region: logging setup
-def _setup_logging():
+def _set_up_logging():
     loglevel = os.getenv("LOG_LEVEL", DEFAULT_LOG_LEVEL).upper()
     numeric_level = getattr(logging, loglevel, None)
     if not isinstance(numeric_level, int):
         raise ValueError("Invalid log level: %s", loglevel)
     root_logger = logging.getLogger()
-    formatter = utils.SpecializeDebugFormatter(
+
+    formatter = logging.Formatter(
         fmt=DEFAULT_LOG_FORMAT, datefmt=DEFAULT_LOG_DATE_FORMAT
     )
+    utils.specialize_debug(formatter)
+
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
+
     root_logger.addHandler(handler)
     root_logger.setLevel(numeric_level)
+
     print(f"Initializing Logger with LogLevel: {loglevel}")
 
 
-_setup_logging()
+_set_up_logging()
 
 
 def print_version(collector_type: str):

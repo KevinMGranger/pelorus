@@ -125,20 +125,30 @@ def collect_bad_attribute_path_error(error_list: list):
         error_list.append(e)
 
 
-class SpecializeDebugFormatter(logging.Formatter):
+DEBUG_FORMAT = (
+    "%(asctime)-15s %(levelname)-8s %(pathname)s:%(lineno)d %(funcName)s() %(message)s"
+)
+
+
+def specialize_debug(formatter: logging.Formatter):
     """
-    Uses a different format for DEBUG messages that has more information.
+    Specialize debug formatting for the given formatter.
     """
+    original_format = formatter.format
 
-    DEBUG_FORMAT = "%(asctime)-15s %(levelname)-8s %(pathname)s:%(lineno)d %(funcName)s() %(message)s"
+    # set up debug formatter, using any specialized formatting
+    # from the given formatter
+    _debug_formatter = logging.Formatter(DEBUG_FORMAT)
+    _debug_formatter.formatTime = formatter.formatTime
+    _debug_formatter.formatException = formatter.formatException
+    _debug_formatter.formatStack = formatter.formatStack
 
-    def format(self, record):
-        prior_format = self._style._fmt
+    def format(record: logging.LogRecord) -> str:
+        if record.levelno == logging.DEBUG:
+            return _debug_formatter.format(record)
+        else:
+            return original_format(record)
 
-        try:
-            if record.levelno == logging.DEBUG:
-                self._style._fmt = self.DEBUG_FORMAT
+    formatter.format = format
 
-            return logging.Formatter.format(self, record)
-        finally:
-            self._style._fmt = prior_format
+
