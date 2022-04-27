@@ -6,6 +6,7 @@ in kubernetes that are not so idiomatic to deal with.
 import contextlib
 import dataclasses
 import logging
+import wsgiref.simple_server
 from typing import Any, Optional, Union, overload
 
 # sentinel value for the default kwarg to get_nested
@@ -152,3 +153,16 @@ def specialize_debug(formatter: logging.Formatter):
     formatter.format = format
 
 
+class _ErrorLoggingWSGIHandler(wsgiref.simple_server.WSGIRequestHandler):
+    """
+    Use the logging system for errors,
+    but do not log requests.
+    """
+
+    logger = logging.getLogger("http_server")
+
+    def log_error(self, format: str, *args: Any) -> None:
+        self.logger.error(format, args)
+
+    def log_message(self, format: str, *args: Any) -> None:
+        pass

@@ -1,13 +1,10 @@
 #!/usr/bin/python3
 import logging
 import os
-import time
 from distutils.util import strtobool
 
 from kubernetes import client
 from openshift.dynamic import DynamicClient
-from prometheus_client import start_http_server
-from prometheus_client.core import REGISTRY
 
 import pelorus
 from committime.collector_azure_devops import AzureDevOpsCommitCollector
@@ -63,13 +60,9 @@ if __name__ == "__main__":
         strtobool(os.environ.get("TLS_VERIFY", pelorus.DEFAULT_TLS_VERIFY))
     )
     namespaces = pelorus.get_namespaces_from_env()
-    apps = None
-    start_http_server(8080)
 
     collector = GitFactory.getCollector(
         dyn_client, username, token, namespaces, apps, git_api, git_provider
     )
-    REGISTRY.register(collector)
 
-    while True:
-        time.sleep(1)
+    pelorus.serve(collector)

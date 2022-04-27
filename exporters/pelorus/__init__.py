@@ -1,9 +1,12 @@
 import logging
 import os
+import wsgiref.simple_server
 from datetime import datetime, timezone
 from typing import Iterable, Optional, Sequence, Union
 
+import prometheus_client.exposition as exposition
 from kubernetes import config
+from prometheus_client import REGISTRY
 from prometheus_client.registry import Collector
 
 from . import utils
@@ -154,3 +157,25 @@ def url_joiner(url, path):
 
 class AbstractPelorusExporter(Collector):
     pass
+
+
+def serve(collector: Collector):
+    """
+    Serve the collector until the process is shut down.
+
+    Do not register the collector first.
+
+    This will block, so there is no need to wait for it.
+    """
+
+    REGISTRY.register(collector)
+
+    app = exposition.make_wsgi_app()
+    httpd = wsgiref.simple_server.make_server(
+        "0.0.0.0",
+        8080,
+        app,
+        server_class=exposition.ThreadingWSGIServer,
+        handler_class=utils._ErrorLoggingWSGIHandler,
+    )
+    httpd.serve_forever()

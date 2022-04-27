@@ -18,11 +18,7 @@
 import logging
 import os
 import sys
-import time
 from typing import Union
-
-from prometheus_client import start_http_server
-from prometheus_client.core import REGISTRY
 
 import pelorus
 from failure.collector_jira import JiraFailureCollector
@@ -63,14 +59,9 @@ if __name__ == "__main__":
     tracker_provider = os.environ.get("PROVIDER", pelorus.DEFAULT_TRACKER)
     logging.info("Server: %s", tracker_api)
     logging.info("User: %s", username)
-    start_http_server(8080)
 
     collector = TrackerFactory.getCollector(
         username, token, tracker_api, projects, tracker_provider
     )
 
-    REGISTRY.register(collector)
-
-    while True:
-        time.sleep(1)
-    logging.info("===== Exit Failure Collector =====")
+    pelorus.serve(collector)

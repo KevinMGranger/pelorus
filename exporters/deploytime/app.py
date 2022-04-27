@@ -1,14 +1,12 @@
 import logging
 import re
-import time
 from typing import Iterable, Optional
 
 import attr
 from kubernetes import client
 from openshift.dynamic import DynamicClient
 from openshift.dynamic.exceptions import ResourceNotFoundError
-from prometheus_client import start_http_server
-from prometheus_client.core import REGISTRY, GaugeMetricFamily
+from prometheus_client.core import GaugeMetricFamily
 
 import pelorus
 
@@ -240,7 +238,5 @@ if __name__ == "__main__":
         logging.warning("If NAMESPACES are given, PROD_LABEL is ignored.")
     elif not (namespaces or prod_label):
         logging.info("No NAMESPACES or PROD_LABEL given, will watch all namespaces")
-    start_http_server(8080)
-    REGISTRY.register(DeployTimeCollector(namespaces, dyn_client, prod_label))
-    while True:
-        time.sleep(1)
+
+    pelorus.serve(DeployTimeCollector(namespaces, dyn_client, prod_label))
