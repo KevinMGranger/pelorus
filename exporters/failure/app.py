@@ -48,9 +48,7 @@ class TrackerFactory:
 
 if __name__ == "__main__":
     pelorus.print_version("failure")
-    logging.info("===== Starting Failure Collector =====")
     if pelorus.missing_configs(REQUIRED_CONFIG):
-        print("This program will exit.")
         sys.exit(1)
     projects = None
     if os.environ.get("PROJECTS") is not None:
@@ -59,12 +57,12 @@ if __name__ == "__main__":
             os.environ.get("PROJECTS"),
         )
         projects = os.environ.get("PROJECTS")
-    username = os.environ.get("USER")
-    token = os.environ.get("TOKEN")
-    tracker_api = os.environ.get("SERVER")
+    username = os.environ["USER"]
+    token = os.environ["TOKEN"]
+    tracker_api = os.environ["SERVER"]
     tracker_provider = os.environ.get("PROVIDER", pelorus.DEFAULT_TRACKER)
-    logging.info("Server: " + tracker_api)
-    logging.info("User: " + username)
+    logging.info("Server: %s", tracker_api)
+    logging.info("User: %s", username)
     start_http_server(8080)
 
     collector = TrackerFactory.getCollector(

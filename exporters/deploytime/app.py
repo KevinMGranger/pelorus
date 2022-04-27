@@ -1,5 +1,4 @@
 import logging
-import os
 import re
 import time
 from typing import Iterable, Optional
@@ -235,11 +234,7 @@ if __name__ == "__main__":
     k8s_config = client.Configuration()
     k8s_client = client.api_client.ApiClient(configuration=k8s_config)
     dyn_client = DynamicClient(k8s_client)
-    namespaces = {
-        stripped
-        for proj in os.environ.get("NAMESPACES", "").split(",")
-        if (stripped := proj.strip())
-    }
+    namespaces = pelorus.get_namespaces_from_env()
     prod_label = pelorus.get_prod_label()
     if namespaces and prod_label:
         logging.warning("If NAMESPACES are given, PROD_LABEL is ignored.")

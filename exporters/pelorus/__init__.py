@@ -1,7 +1,7 @@
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Optional, Sequence
+from typing import Iterable, Optional, Sequence, Union
 
 from kubernetes import config
 from prometheus_client.registry import Collector
@@ -70,27 +70,29 @@ NamespaceSpec = Optional[Sequence[str]]
 
 
 def load_kube_config():
+    """
+    Load a local kube config.
+    If within kubernetes, uses the service account config, and prints the namespace it's within.
+    If running locally, uses ~/.kube/config or the KUBECONFIG env var.
+    """
     if "OPENSHIFT_BUILD_NAME" in os.environ:
         config.load_incluster_config()
-        file_namespace = open(
+        with open(
             "/run/secrets/kubernetes.io/serviceaccount/namespace", "r"
-        )
-        if file_namespace.mode == "r":
-            namespace = file_namespace.read()
-            print("namespace: %s\n" % (namespace))
+        ) as namespace:
+            print(f"namespace: {namespace.read()}\n")
     else:
         config.load_kube_config()
 
 
-def convert_date_time_to_timestamp(date_time, format_string="%Y-%m-%dT%H:%M:%SZ"):
+def convert_date_time_to_timestamp(
+    date_time: Union[datetime, str], format_string="%Y-%m-%dT%H:%M:%SZ"
+) -> float:
     timestamp = None
-    try:
-        if isinstance(date_time, datetime):
-            timestamp = date_time
-        else:
-            timestamp = datetime.strptime(date_time, format_string)
-    except ValueError:
-        raise
+    if isinstance(date_time, datetime):
+        timestamp = date_time
+    else:
+        timestamp = datetime.strptime(date_time, format_string)
     return timestamp.replace(tzinfo=timezone.utc).timestamp()
 
 
@@ -112,14 +114,24 @@ def get_prod_label():
     return os.getenv("PROD_LABEL", DEFAULT_PROD_LABEL)
 
 
-def missing_configs(vars):
-    missing_configs = False
-    for var in vars:
-        if var not in os.environ:
-            logging.error("Missing required environment variable '%s'." % var)
-            missing_configs = True
+def missing_configs(vars: Iterable[str]) -> bool:
+    """
+    Determine if any required environment variables are missing,
+    logging an error if so.
+    """
+    missing = [var for var in vars if var not in os.environ]
+    if missing:
+        logging.error("Missing required environment variables: %s", ", ".join(vars))
 
-    return missing_configs
+    return bool(missing)
+
+
+def get_namespaces_from_env() -> set[str]:
+    """
+    Get the set of namespaces given in the NAMESPACES env var.
+    """
+    env_namespaces = os.environ.get("NAMESPACES", "").split(",")
+    return {stripped for proj in env_namespaces if (stripped := proj.strip())}
 
 
 def upgrade_legacy_vars():
