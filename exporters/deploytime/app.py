@@ -43,12 +43,12 @@ class DeployTimeCollector(pelorus.AbstractPelorusExporter):
                     m.namespace,
                     m.name,
                     m.image_sha,
-                    pelorus.convert_date_time_to_timestamp(m.deploy_time),
+                    m.deploy_time,
                 )
             )
             metric.add_metric(
-                [m.namespace, m.name, m.image_sha, m.deploy_time],
-                pelorus.convert_date_time_to_timestamp(m.deploy_time),
+                [m.namespace, m.name, m.image_sha, str(m.deploy_time)],
+                m.deploy_time,
             )
             yield (metric)
 
@@ -95,7 +95,7 @@ class DeployTimeMetric:
     namespace: str
     # WARNING: do not mutate the dict after hashing or things may break.
     labels: dict[str, str]
-    deploy_time: object
+    deploy_time: float
     image_sha: str
 
     def __hash__(self):
@@ -202,7 +202,9 @@ def generate_metrics(
                     name=rc.metadata.labels[pelorus.get_app_label()],
                     namespace=namespace,
                     labels=rc.metadata.labels,
-                    deploy_time=rc.metadata.creationTimestamp,
+                    deploy_time=pelorus.convert_date_time_to_timestamp(
+                        rc.metadata.creationTimestamp
+                    ),
                     image_sha=sha,
                 )
                 yield metric
