@@ -46,6 +46,7 @@ def _print_version():
 
 # region: logging setup
 def _setup_logging():
+    print("foo_bar is:", os.getenv("FOO_BAR"))
     _print_version()
     loglevel = os.getenv("LOG_LEVEL", DEFAULT_LOG_LEVEL).upper()
     numeric_level = getattr(logging, loglevel, None)
