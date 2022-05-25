@@ -240,7 +240,7 @@ if __name__ == "__main__":
         logging.warning("If NAMESPACES are given, PROD_LABEL is ignored.")
     elif not (namespaces or prod_label):
         logging.info("No NAMESPACES or PROD_LABEL given, will watch all namespaces")
-    start_http_server(8080)
+    start_http_server(8081)
     REGISTRY.register(DeployTimeCollector(namespaces, dyn_client, prod_label))
     while True:
         time.sleep(1)
