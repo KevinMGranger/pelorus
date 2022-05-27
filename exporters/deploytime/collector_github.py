@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterable, NamedTuple, Optional
+from typing import Any, Iterable, NamedTuple, Optional, cast
 
 from prometheus_client.core import GaugeMetricFamily
 from prometheus_client.registry import Collector
-from requests import HTTPError, JSONDecodeError, Session
+from requests import Session
 
 from pelorus.utils import (
     BadAttributePathError,
@@ -14,6 +14,7 @@ from pelorus.utils import (
     get_nested,
     join_url_path_components,
 )
+from provider_common.github import GitHubError, paginate_github
 
 
 class Release(NamedTuple):
@@ -51,22 +52,10 @@ class GitHubReleaseCollector(Collector):
         )
 
         for project in self._projects:
-            try:
-                releases = self._get_releases_for_project(project)
-            except HTTPError as e:
-                logging.error("Error getting releases for project %s: %s", project, e)
-                continue
+            for release in self._get_releases_for_project(project):
+                commit = self._get_commit_for_tag(project, release.tag_name)
 
-            for release in releases:
-                try:
-                    commit = self._get_commit_for_tag(project, release.tag_name)
-                except (ValueError, HTTPError, BadAttributePathError) as e:
-                    logging.error(
-                        "Error getting commit for tag %s in project %s: %s",
-                        release.tag_name,
-                        project,
-                        e,
-                    )
+                if commit is None:
                     continue
 
                 metric.add_metric(
@@ -85,29 +74,18 @@ class GitHubReleaseCollector(Collector):
         """
         Get all releases for a project.
 
-        If a release is missing necessary data,
-        it won't be yielded, but will be logged.
+        If a release is missing necessary data, it won't be yielded, but will be logged.
 
-        May raise an HTTPError if the reponse from github was bad.
+        Will stop yielding if there is a GitHubError for any of the reasons outlined in paginate_github.
         """
-        next_url = f"https://{self._host}" + join_url_path_components(
-            "repos", project, "releases"
-        )
-        response = self._session.get(next_url)
-        response.raise_for_status()
 
-        last_url: str = get_nested(response.links, "last.url")
-
-        while True:
-            try:
-                responses = response.json()
-            except JSONDecodeError as e:
-                logging.error("Response was not valid json: %s, error %s", response, e)
-                break
-
-            for release in responses:
+        try:
+            first_url = f"https://{self._host}" + join_url_path_components(
+                "repos", project, "releases"
+            )
+            for release in paginate_github(self._session, first_url):
                 try:
-                    yield Release.from_json(release)
+                    yield Release.from_json(cast(dict[str, Any], release))
                 except BadAttributesError as e:
                     logging.error(
                         "Release for %s was missing attributes: %s. Body: %s",
@@ -115,34 +93,53 @@ class GitHubReleaseCollector(Collector):
                         e,
                         release,
                     )
+        except GitHubError as e:
+            logging.error(
+                "Error while getting GitHub response for project %s: %s",
+                project,
+                e,
+                exc_info=True,
+            )
 
-            if next_url == last_url:
-                break
-
-            response = self._session.get(next_url)
-            response.raise_for_status()
-
-            next_url = get_nested(response.links, "next.url")
-
-    def _get_commit_for_tag(self, project: str, tag_name: str) -> str:
+    def _get_commit_for_tag(self, project: str, target_tag_name: str) -> Optional[str]:
         """
         Get the commit for the given tag name.
 
-        Will raise BadAttributePathError if info is missing,
-        an HTTPError if the response was bad,
-        or a ValueError if the commit wasn't found.
+        Will log errors and return None for the following reasons:
+
+        BadAttributePathError if info is missing,
+        Any GitHubError from talking to GitHub
         """
-        url = f"https://{self._host}" + join_url_path_components(
-            "repos", project, "tags"
-        )
-        response = self._session.get(url)
-        response.raise_for_status()
+        try:
+            url = f"https://{self._host}" + join_url_path_components(
+                "repos", project, "tags"
+            )
+            for tag in paginate_github(self._session, url):
+                tag_name = get_nested(tag, "name", default=None)
+                if not tag_name:
+                    logging.warning(
+                        "Tag for project %s was missing name: %s", project, tag
+                    )
 
-        for tag in response.json():
-            if get_nested(tag, "name") == tag_name:
-                return get_nested(tag, "commit.sha")
+                if tag_name == target_tag_name:
+                    return get_nested(tag, "commit.sha")
 
-        raise ValueError(f"No commit for {tag_name} in {project} found")
+            logging.error("No tag %s for project %s found", target_tag_name, project)
+        except BadAttributePathError:
+            logging.error(
+                "Tag %s for project %s was missing commit info",
+                target_tag_name,
+                project,
+            )
+        except GitHubError as e:
+            logging.error(
+                "Error talking to GitHub while looking for tag %s for project %s: %s",
+                target_tag_name,
+                project,
+                e,
+            )
+
+        return None
 
 
 def make_collector():
