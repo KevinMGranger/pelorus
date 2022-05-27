@@ -1,27 +1,37 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import Any, Iterable, NamedTuple, Optional
 
 from prometheus_client.core import GaugeMetricFamily
 from prometheus_client.registry import Collector
-from requests import Session
+from requests import HTTPError, JSONDecodeError, Session
 
-from pelorus.utils import join_url_path_components
+from pelorus.utils import (
+    BadAttributePathError,
+    BadAttributesError,
+    collect_bad_attribute_path_error,
+    get_nested,
+    join_url_path_components,
+)
 
 
 class Release(NamedTuple):
     tag_name: str
-    published_at: datetime
+    published_at: str  # TODO: parse this
 
     @classmethod
     def from_json(cls, json_object: dict[str, Any]) -> Release:
-        return Release(
-            # TODO parse datetime
-            tag_name=json_object["tag_name"],
-            published_at=json_object["published_at"],
-        )
+        errs = []
+        kwargs = {}
+        for key in "tag_name published_at".split():
+            with collect_bad_attribute_path_error(errs):
+                kwargs[key] = get_nested(json_object, key)
+
+        if errs:
+            raise BadAttributesError(errs)
+
+        return cls(**kwargs)
 
 
 class GitHubReleaseCollector(Collector):
@@ -41,8 +51,24 @@ class GitHubReleaseCollector(Collector):
         )
 
         for project in self._projects:
-            for release in self._get_releases_for_project(project):  # type: ignore
-                commit = self._get_commit_for_tag(project, release.tag_name)
+            try:
+                releases = self._get_releases_for_project(project)
+            except HTTPError as e:
+                logging.error("Error getting releases for project %s: %s", project, e)
+                continue
+
+            for release in releases:
+                try:
+                    commit = self._get_commit_for_tag(project, release.tag_name)
+                except (ValueError, HTTPError, BadAttributePathError) as e:
+                    logging.error(
+                        "Error getting commit for tag %s in project %s: %s",
+                        release.tag_name,
+                        project,
+                        e,
+                    )
+                    continue
+
                 metric.add_metric(
                     [
                         "TODO what to do with namespace?",
@@ -56,17 +82,39 @@ class GitHubReleaseCollector(Collector):
                 yield metric  # TODO: is this actually how they want us to do it?
 
     def _get_releases_for_project(self, project: str) -> Iterable[Release]:
+        """
+        Get all releases for a project.
+
+        If a release is missing necessary data,
+        it won't be yielded, but will be logged.
+
+        May raise an HTTPError if the reponse from github was bad.
+        """
         next_url = f"https://{self._host}" + join_url_path_components(
             "repos", project, "releases"
         )
         response = self._session.get(next_url)
         response.raise_for_status()
 
-        last_url: str = response.links["last"]["url"]
+        last_url: str = get_nested(response.links, "last.url")
 
         while True:
-            for release in response.json():
-                yield Release.from_json(release)
+            try:
+                responses = response.json()
+            except JSONDecodeError as e:
+                logging.error("Response was not valid json: %s, error %s", response, e)
+                break
+
+            for release in responses:
+                try:
+                    yield Release.from_json(release)
+                except BadAttributesError as e:
+                    logging.error(
+                        "Release for %s was missing attributes: %s. Body: %s",
+                        project,
+                        e,
+                        release,
+                    )
 
             if next_url == last_url:
                 break
@@ -74,9 +122,16 @@ class GitHubReleaseCollector(Collector):
             response = self._session.get(next_url)
             response.raise_for_status()
 
-            next_url = response.links["next"]["url"]
+            next_url = get_nested(response.links, "next.url")
 
     def _get_commit_for_tag(self, project: str, tag_name: str) -> str:
+        """
+        Get the commit for the given tag name.
+
+        Will raise BadAttributePathError if info is missing,
+        an HTTPError if the response was bad,
+        or a ValueError if the commit wasn't found.
+        """
         url = f"https://{self._host}" + join_url_path_components(
             "repos", project, "tags"
         )
@@ -84,8 +139,8 @@ class GitHubReleaseCollector(Collector):
         response.raise_for_status()
 
         for tag in response.json():
-            if tag["name"] == tag_name:
-                return tag["commit"]["sha"]
+            if get_nested(tag, "name") == tag_name:
+                return get_nested(tag, "commit.sha")
 
         raise ValueError(f"No commit for {tag_name} in {project} found")
 
