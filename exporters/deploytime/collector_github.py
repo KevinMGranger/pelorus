@@ -38,7 +38,7 @@ class Release(NamedTuple):
 class GitHubReleaseCollector(Collector):
     # TODO: regex to determine which releases are "prod"
 
-    def __init__(self, projects: Iterable[str], custom_host: Optional[str] = None):
+    def __init__(self, projects: Iterable[str], custom_host: str = ""):
         self._projects = set(projects)
         logging.info("Watching projects %s", self._projects)
         self._session = Session()
