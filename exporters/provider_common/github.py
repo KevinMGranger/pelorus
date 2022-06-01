@@ -98,7 +98,6 @@ class GitHubPageResponse:
         return iter(self.items)
 
 
-# TODO: rate limiting
 def paginate_github_with_page(
     session: requests.Session, start_url: str
 ) -> Iterable[GitHubPageResponse]:
@@ -106,13 +105,14 @@ def paginate_github_with_page(
     Paginate github requests the way their API dictates:
     https://docs.github.com/en/rest/guides/traversing-with-pagination
 
+    Yields lists and the response they came from. This is solely so you can inspect the response.
+    For higher-level usage, use `paginate_github`, which flattens each item in each list for you.
+
     Will return a GitHubError with any of the following set to the __cause__ if they occur:
     HTTPError if there's a bad response
     JSONDecodeError if there's a response with invalid JSON
     ValueError if a response was valid json but wasn't a list
     BadAttributePathError if a response was missing a `next` link or the first was missing a `last` link.
-
-    Yields lists and the response they came from. You will probably want to flatten them.
     """
     response = session.get(start_url)
     try:
@@ -136,4 +136,17 @@ def paginate_github_with_page(
 
 
 def paginate_github(session: requests.Session, start_url: str) -> Iterable:
+    """
+    Paginate github requests the way their API dictates:
+    https://docs.github.com/en/rest/guides/traversing-with-pagination
+
+    Will yield each item in each response list, automatically requesting
+    subsequent pages as necessary.
+
+    Will return a GitHubError with any of the following set to the __cause__ if they occur:
+    HTTPError if there's a bad response
+    JSONDecodeError if there's a response with invalid JSON
+    ValueError if a response was valid json but wasn't a list
+    BadAttributePathError if a response was missing a `next` link or the first was missing a `last` link.
+    """
     return chain.from_iterable(paginate_github_with_page(session, start_url))
