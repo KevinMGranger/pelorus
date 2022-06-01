@@ -63,7 +63,7 @@ class GitHubReleaseCollector(Collector):
                     ],
                     1.0,  # TODO timestamp
                 )
-                yield metric  # TODO: is this actually how they want us to do it?
+        yield metric
 
     def _get_releases_for_project(self, project: str) -> Iterable[Release]:
         """
