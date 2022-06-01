@@ -79,15 +79,10 @@ class GitHubReleaseCollector(Collector):
                 "repos", project, "releases"
             )
             for release in paginate_github(self._session, first_url):
-                try:
-                    yield Release.from_json(cast(dict[str, Any], release))
-                except BadAttributesError as e:
-                    logging.error(
-                        "Release for %s was missing attributes: %s. Body: %s",
-                        project,
-                        e,
-                        release,
-                    )
+                release = cast(dict[str, Any], release)
+                if release["draft"]:
+                    continue
+                yield Release.from_json(release)
         except GitHubError as e:
             logging.error(
                 "Error while getting GitHub response for project %s: %s",
