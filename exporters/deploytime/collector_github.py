@@ -37,7 +37,7 @@ class GitHubReleaseCollector(Collector):
         self._projects = set(projects)
         logging.info("Watching projects %s", self._projects)
         self._session = Session()
-        self._host = custom_host or "github.com"
+        self._host = custom_host or "api.github.com"
 
     def collect(self) -> Iterable[GaugeMetricFamily]:
         metric = GaugeMetricFamily(
@@ -75,7 +75,7 @@ class GitHubReleaseCollector(Collector):
         """
 
         try:
-            first_url = f"https://{self._host}" + join_url_path_components(
+            first_url = f"https://{self._host}/" + join_url_path_components(
                 "repos", project, "releases"
             )
             for release in paginate_github(self._session, first_url):
@@ -106,7 +106,7 @@ class GitHubReleaseCollector(Collector):
         Any GitHubError from talking to GitHub
         """
         try:
-            url = f"https://{self._host}" + join_url_path_components(
+            url = f"https://{self._host}/" + join_url_path_components(
                 "repos", project, "tags"
             )
             for tag in paginate_github(self._session, url):
