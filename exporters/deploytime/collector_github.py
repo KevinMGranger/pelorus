@@ -143,4 +143,13 @@ class GitHubReleaseCollector(Collector):
 
 
 def make_collector():
-    raise NotImplementedError
+    custom_host = pelorus.utils.get_env_var("SERVER", "")
+    token = pelorus.utils.get_env_var("TOKEN")
+
+    projects = pelorus.utils.get_env_var("PROJECTS", "")
+    projects = re.sub(r"\s", ",", projects)
+    projects = projects.split(",")
+    if not projects:
+        raise ValueError("No projects specified for GitHub deploytime collector")
+
+    return GitHubReleaseCollector(projects, custom_host, token)
