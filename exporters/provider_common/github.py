@@ -1,4 +1,6 @@
+import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from itertools import chain
 from typing import Iterable, Iterator
 from urllib.error import HTTPError
@@ -6,6 +8,50 @@ from urllib.error import HTTPError
 import requests
 
 from pelorus.utils import BadAttributePathError, get_nested
+
+# The maximum number of requests you're permitted to make per hour.
+RATELIMIT_LIMIT_HEADER = "x-ratelimit-limit"
+# The number of requests remaining in the current rate limit window.
+RATELIMIT_REMAINING_HEADER = "x-ratelimit-remaining"
+# The time at which the current rate limit window resets in UTC epoch seconds.
+RATELIMIT_RESET_HEADER = "x-ratelimit-reset"
+
+
+def _log_ratelimit(response: requests.Response):
+    """
+    Log ratelimit header values as a debug message,
+    or an error if the request failed due to rate limits.
+    Will ignore errors getting this information,
+    as the info isn't strictly critical.
+    """
+    try:
+        rate_limit = int(response.headers[RATELIMIT_LIMIT_HEADER])
+        remaining_requests = int(response.headers[RATELIMIT_REMAINING_HEADER])
+
+        reset_time = response.headers[RATELIMIT_RESET_HEADER]
+        reset_time = datetime.fromtimestamp(float(reset_time), timezone.utc)
+
+        if not response.ok and remaining_requests == 0:
+            log_level = logging.ERROR
+        else:
+            log_level = logging.DEBUG
+
+        logging.log(
+            log_level,
+            "GitHub rate limit headers: %s: %s, %s: %s, %s: %s",
+            RATELIMIT_LIMIT_HEADER,
+            rate_limit,
+            RATELIMIT_REMAINING_HEADER,
+            remaining_requests,
+            RATELIMIT_RESET_HEADER,
+            reset_time,
+        )
+    except Exception as e:
+        logging.error(
+            "Issue with github rate limit headers: %s",
+            e,
+            exc_info=True,
+        )
 
 
 def _validate_github_response(response: requests.Response) -> list:
@@ -17,6 +63,10 @@ def _validate_github_response(response: requests.Response) -> list:
 
     This is done separately to avoid duplication in pagination code.
 
+    Will also log rate limit headers as a debug message.
+    If the rate limit is exceeded, GitHub will return a 4xx--
+    the logging is just for context.
+
     Returns the list.
 
     Exceptions:
@@ -24,6 +74,7 @@ def _validate_github_response(response: requests.Response) -> list:
     JSONDecodeError if there's a response with invalid JSON
     ValueError if a response was valid json but wasn't a list
     """
+    _log_ratelimit(response)
     response.raise_for_status()
     json = response.json()
     if not isinstance(json, list):
