@@ -118,13 +118,17 @@ def paginate_github_with_page(
     try:
         json = _validate_github_response(response)
 
-        last_url: str = get_nested(response.links, "last.url")
+        # if the last Link is not present, the response had all of the requested
+        # items, and no pagination will occur.
+        last_url: str = get_nested(response.links, "last.url", default="")
 
         url = start_url
 
         while True:
             yield GitHubPageResponse(json, response)
 
+            if not last_url:
+                return
             if url == last_url:
                 break
 
