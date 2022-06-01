@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any, Iterable, NamedTuple, Optional, cast
 
 from prometheus_client.core import GaugeMetricFamily
@@ -14,25 +15,19 @@ from pelorus.utils import (
     get_nested,
     join_url_path_components,
 )
-from provider_common.github import GitHubError, paginate_github
+from provider_common.github import GitHubError, paginate_github, parse_datetime
 
 
 class Release(NamedTuple):
     tag_name: str
-    published_at: str  # TODO: parse this
+    published_at: datetime
 
     @classmethod
     def from_json(cls, json_object: dict[str, Any]) -> Release:
-        errs = []
-        kwargs = {}
-        for key in "tag_name published_at".split():
-            with collect_bad_attribute_path_error(errs):
-                kwargs[key] = get_nested(json_object, key)
+        tag_name = json_object["tag_name"]
+        published_at = parse_datetime(json_object["published_at"])
 
-        if errs:
-            raise BadAttributesError(errs)
-
-        return cls(**kwargs)
+        return Release(tag_name, published_at)
 
 
 class GitHubReleaseCollector(Collector):
