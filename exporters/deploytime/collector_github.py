@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime
 from typing import Any, Iterable, NamedTuple, Optional, cast
 
@@ -8,10 +9,10 @@ from prometheus_client.core import GaugeMetricFamily
 from prometheus_client.registry import Collector
 from requests import Session
 
+import pelorus
 from pelorus.utils import (
     BadAttributePathError,
-    BadAttributesError,
-    collect_bad_attribute_path_error,
+    TokenAuth,
     get_nested,
     join_url_path_components,
 )
@@ -51,10 +52,11 @@ class GitHubReleaseCollector(Collector):
         metric = GaugeMetricFamily(
             "deploy_timestamp",
             "Deployment timestamp",
-            labels=["namespace", "app", "image_sha"],
+            labels=["namespace", "app", "image_sha", "release_tag"],
         )
 
         for project in self._projects:
+            namespace, app = project.split("/")
             for release in self._get_releases_for_project(project):
                 commit = self._get_commit_for_tag(project, release.tag_name)
 
@@ -62,14 +64,8 @@ class GitHubReleaseCollector(Collector):
                     continue
 
                 metric.add_metric(
-                    [
-                        "TODO what to do with namespace?",
-                        project,
-                        release.tag_name,
-                        commit,
-                        "datetime",  # TODO #release.published_at,
-                    ],
-                    1.0,  # TODO timestamp
+                    [namespace, app, commit, release.tag_name],
+                    release.published_at.timestamp(),
                 )
         yield metric
 
