@@ -31,13 +31,21 @@ class Release(NamedTuple):
 
 
 class GitHubReleaseCollector(Collector):
-    # TODO: regex to determine which releases are "prod"
+    # TODO: regex to determine which releases are "prod"?
 
-    def __init__(self, projects: Iterable[str], custom_host: str = ""):
+    def __init__(
+        self,
+        projects: Iterable[str],
+        custom_host: str = "",
+        apikey: Optional[str] = None,
+    ):
         self._projects = set(projects)
         logging.info("Watching projects %s", self._projects)
         self._session = Session()
         self._host = custom_host or "api.github.com"
+
+        if apikey:
+            self._session.auth = TokenAuth(apikey)
 
     def collect(self) -> Iterable[GaugeMetricFamily]:
         metric = GaugeMetricFamily(
