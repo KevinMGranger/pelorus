@@ -244,3 +244,7 @@ class TokenAuth(requests.auth.AuthBase):
     def __call__(self, r: requests.PreparedRequest):
         r.headers["Authorization"] = self.auth_str
         return r
+
+
+def join_url_path_components(*components: str) -> str:
+    return "/".join(c.strip("/") for c in components)
