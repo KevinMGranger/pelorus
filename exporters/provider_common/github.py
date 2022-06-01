@@ -16,6 +16,20 @@ RATELIMIT_REMAINING_HEADER = "x-ratelimit-remaining"
 # The time at which the current rate limit window resets in UTC epoch seconds.
 RATELIMIT_RESET_HEADER = "x-ratelimit-reset"
 
+_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
+
+def parse_datetime(datetime_str: str) -> datetime:
+    """
+    Parse the ISO 8601 datetime string used in all github responses:
+    https://docs.github.com/en/rest/overview/resources-in-the-rest-api#schema
+
+    The datetime will be timezone-aware and in UTC.
+
+    May throw a ValueError if it doesn't match the expected format.
+    """
+    return datetime.strptime(datetime_str, _DATETIME_FORMAT).astimezone(timezone.utc)
+
 
 def _log_ratelimit(response: requests.Response):
     """
@@ -129,6 +143,7 @@ def paginate_github_with_page(
 
             if not last_url:
                 return
+
             if url == last_url:
                 break
 
