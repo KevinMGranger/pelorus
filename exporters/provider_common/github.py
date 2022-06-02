@@ -31,13 +31,20 @@ def parse_datetime(datetime_str: str) -> datetime:
     return datetime.strptime(datetime_str, _DATETIME_FORMAT).astimezone(timezone.utc)
 
 
-def _log_ratelimit(response: requests.Response):
+@dataclass
+class GitHubError(Exception):
+    response: requests.Response
+    message: str = "Bad response from GitHub"
+
+
+def _log_and_validate_ratelimit(response: requests.Response):
     """
     Log ratelimit header values as a debug message,
     or an error if the request failed due to rate limits.
-    Will ignore errors getting this information,
-    as the info isn't strictly critical.
+
+    Will raise a GitHub error if there was a rate limit hit.
     """
+    rate_limit_message = None
     try:
         rate_limit = int(response.headers[RATELIMIT_LIMIT_HEADER])
         remaining_requests = int(response.headers[RATELIMIT_REMAINING_HEADER])
@@ -45,10 +52,12 @@ def _log_ratelimit(response: requests.Response):
         reset_time = response.headers[RATELIMIT_RESET_HEADER]
         reset_time = datetime.fromtimestamp(float(reset_time), timezone.utc)
 
-        if not response.ok and remaining_requests == 0:
-            log_level = logging.ERROR
-        else:
-            log_level = logging.DEBUG
+        if response.status_code == 403:
+            json = response.json()
+            if "rate limit" in json["message"]:
+                rate_limit_message = json["message"]
+
+        log_level = logging.ERROR if rate_limit_message else logging.DEBUG
 
         logging.log(
             log_level,
@@ -67,6 +76,9 @@ def _log_ratelimit(response: requests.Response):
             exc_info=True,
         )
 
+    if rate_limit_message:
+        raise GitHubError(response, rate_limit_message)
+
 
 def _validate_github_response(response: requests.Response) -> list:
     """
@@ -77,9 +89,9 @@ def _validate_github_response(response: requests.Response) -> list:
 
     This is done separately to avoid duplication in pagination code.
 
-    Will also log rate limit headers as a debug message.
-    If the rate limit is exceeded, GitHub will return a 4xx--
-    the logging is just for context.
+    Will log rate limit headers as a debug message,
+    or as an error if limits are exceeded.
+    In that case, an exception will be thrown afterwards.
 
     Returns the list.
 
@@ -87,20 +99,15 @@ def _validate_github_response(response: requests.Response) -> list:
     HTTPError if there's a bad response
     JSONDecodeError if there's a response with invalid JSON
     ValueError if a response was valid json but wasn't a list
+    GitHubError if the rate limit was exceeded.
     """
-    _log_ratelimit(response)
+    _log_and_validate_ratelimit(response)
     response.raise_for_status()
     json = response.json()
     if not isinstance(json, list):
         raise ValueError(f"Returned json was not a list: {json}")
 
     return json
-
-
-@dataclass
-class GitHubError(Exception):
-    response: requests.Response
-    message: str = "Bad response from GitHub"
 
 
 @dataclass(slots=True)
@@ -150,8 +157,13 @@ def paginate_github_with_page(
             url = get_nested(response.links, "next.url")
             response = session.get(url)
             json = _validate_github_response(response)
-    except (HTTPError, requests.JSONDecodeError, ValueError, BadAttributePathError):
-        raise GitHubError(response)
+    except (
+        HTTPError,
+        requests.JSONDecodeError,
+        ValueError,
+        BadAttributePathError,
+    ) as e:
+        raise GitHubError(response) from e
 
 
 def paginate_github(session: requests.Session, start_url: str) -> Iterable:
