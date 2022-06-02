@@ -10,12 +10,7 @@ from prometheus_client.registry import Collector
 from requests import Session
 
 import pelorus
-from pelorus.utils import (
-    BadAttributePathError,
-    TokenAuth,
-    get_nested,
-    join_url_path_components,
-)
+from pelorus.utils import TokenAuth, join_url_path_components
 from provider_common.github import GitHubError, paginate_github, parse_datetime
 
 
@@ -57,16 +52,18 @@ class GitHubReleaseCollector(Collector):
 
         for project in self._projects:
             namespace, app = project.split("/")
-            for release in self._get_releases_for_project(project):
-                commit = self._get_commit_for_tag(project, release.tag_name)
+            releases = set(self._get_releases_for_project(project))
+            commits = self._get_each_tag_commit(
+                project, set(release.tag_name for release in releases)
+            )
 
-                if commit is None:
-                    continue
+            for release in releases:
+                if commit := commits.get(release.tag_name):
+                    metric.add_metric(
+                        [namespace, app, commit, release.tag_name],
+                        release.published_at.timestamp(),
+                    )
 
-                metric.add_metric(
-                    [namespace, app, commit, release.tag_name],
-                    release.published_at.timestamp(),
-                )
         yield metric
 
     def _get_releases_for_project(self, project: str) -> Iterable[Release]:
@@ -95,45 +92,41 @@ class GitHubReleaseCollector(Collector):
                 exc_info=True,
             )
 
-    def _get_commit_for_tag(self, project: str, target_tag_name: str) -> Optional[str]:
+    def _get_each_tag_commit(self, project: str, tags: set[str]) -> dict[str, str]:
         """
-        Get the commit for the given tag name.
+        Gets the linked commit for every tag given.
+        Returns a dictionary where the key is the tag name,
+        and the value is the commit hash.
 
-        Will log errors and return None for the following reasons:
+        The tag will not be present in the dict if the tag was not found.
+
+        If one of the following errors occurred, then it will be logged,
+        and whatever info that was collected so far will be returned.
 
         BadAttributePathError if info is missing,
         Any GitHubError from talking to GitHub
         """
+
+        tags_to_commits = {}
+
         try:
             url = f"https://{self._host}/" + join_url_path_components(
                 "repos", project, "tags"
             )
             for tag in paginate_github(self._session, url):
-                tag_name = get_nested(tag, "name", default=None)
-                if not tag_name:
-                    logging.warning(
-                        "Tag for project %s was missing name: %s", project, tag
-                    )
+                tag_name = tag["name"]
 
-                if tag_name == target_tag_name:
-                    return get_nested(tag, "commit.sha")
-
-            logging.error("No tag %s for project %s found", target_tag_name, project)
-        except BadAttributePathError:
-            logging.error(
-                "Tag %s for project %s was missing commit info",
-                target_tag_name,
-                project,
-            )
+                if tag_name in tags:
+                    tags_to_commits[tag_name] = tag["commit"]["sha"]
         except GitHubError as e:
             logging.error(
-                "Error talking to GitHub while looking for tag %s for project %s: %s",
-                target_tag_name,
+                "Error talking to GitHub while getting tags for project %s: %s",
                 project,
                 e,
+                exc_info=True,
             )
 
-        return None
+        return tags_to_commits
 
 
 def make_collector():
