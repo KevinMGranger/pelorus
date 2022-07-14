@@ -100,8 +100,8 @@ See each individual function for details.
 from dataclasses import MISSING, Field, field
 from typing import Any, Callable, Literal, Sequence, TypeVar, Union
 
-from pelorus.config.loading import _ENV_LOOKUPS_METADATA_KEY
-from pelorus.config.logging import _LOG_METADATA_KEY
+from pelorus.config.loading import _ENV_LOOKUPS_METADATA_KEY, load
+from pelorus.config.logging import _LOG_METADATA_KEY, format
 
 NoEnv = tuple()
 """
@@ -148,3 +148,11 @@ def var(
     )
 
     return field(**args)
+
+
+__all__ = [
+    "load",
+    "format",
+    "NoEnv",
+    "var",
+]
