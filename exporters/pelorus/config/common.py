@@ -1,5 +1,12 @@
+import os
 from dataclasses import MISSING
 from typing import Any, Literal, Mapping, Type, TypeVar, Union, cast
+
+import pelorus.utils
+
+_DEFAULT_KEYWORD = (
+    os.getenv("PELORUS_DEFAULT_KEYWORD") or pelorus.utils.DEFAULT_VAR_KEYWORD
+)
 
 MetadataType = TypeVar("MetadataType")
 
