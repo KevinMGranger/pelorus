@@ -97,8 +97,8 @@ See each individual function for details.
 # namespaces: list[str] = field(default_factory=list)
 
 
-from dataclasses import MISSING, Field, field
-from typing import Any, Callable, Literal, Sequence, TypeVar, Union
+from dataclasses import MISSING, field
+from typing import Any, Callable, Literal, Sequence, TypeVar, Union, overload
 
 from pelorus.config.loading import _ENV_LOOKUPS_METADATA_KEY, load
 from pelorus.config.logging import _LOG_METADATA_KEY, format
@@ -111,18 +111,49 @@ It will be passed manually to `load`'s `other` dict.
 You can also pass `None`.
 """
 
-
 FieldType = TypeVar("FieldType")
+
+
+@overload
+def var(
+    *,
+    default: FieldType,
+    log: Union[bool, None, Literal[MISSING]] = MISSING,
+    env_lookups: Union[Sequence[str], None, Literal[MISSING]] = MISSING,
+    other_field_args: dict[str, Any] = {},
+) -> FieldType:
+    ...
+
+
+@overload
+def var(
+    *,
+    default_factory: Callable[[], FieldType],
+    log: Union[bool, None, Literal[MISSING]] = MISSING,
+    env_lookups: Union[Sequence[str], None, Literal[MISSING]] = MISSING,
+    other_field_args: dict[str, Any] = {},
+) -> FieldType:
+    ...
+
+
+@overload
+def var(
+    *,
+    log: Union[bool, None, Literal[MISSING]] = MISSING,
+    env_lookups: Union[Sequence[str], None, Literal[MISSING]] = MISSING,
+    other_field_args: dict[str, Any] = {},
+) -> Any:
+    ...
 
 
 def var(
     *,
-    default: Union[FieldType, Literal[MISSING]] = MISSING,
-    default_factory: Union[Callable[[], FieldType], Literal[MISSING]] = MISSING,
+    default: Any = MISSING,
+    default_factory: Any = MISSING,
     log: Union[bool, None, Literal[MISSING]] = None,
     env_lookups: Union[Sequence[str], None, Literal[MISSING]] = MISSING,
     other_field_args: dict[str, Any] = {},
-) -> Field[FieldType]:
+):
     """
     Customize a variable in a config class.
     See `load`'s documentation for the default behavior.
@@ -144,7 +175,9 @@ def var(
     See also: `dataclasses.field`.
     """
     args = other_field_args | dict(
-        metadata={_LOG_METADATA_KEY: log, _ENV_LOOKUPS_METADATA_KEY: env_lookups}
+        metadata={_LOG_METADATA_KEY: log, _ENV_LOOKUPS_METADATA_KEY: env_lookups},
+        default=default,
+        default_factory=default_factory,
     )
 
     return field(**args)
