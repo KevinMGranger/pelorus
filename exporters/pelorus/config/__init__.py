@@ -103,14 +103,6 @@ from typing import Any, Callable, Literal, Sequence, TypeVar, Union, overload
 from pelorus.config.loading import _ENV_LOOKUPS_METADATA_KEY, load
 from pelorus.config.logging import _LOG_METADATA_KEY, format
 
-NoEnv = tuple()
-"""
-The config variable should not be looked up in the environment.
-It will be passed manually to `load`'s `other` dict.
-
-You can also pass `None`.
-"""
-
 FieldType = TypeVar("FieldType")
 
 
@@ -186,6 +178,5 @@ def var(
 __all__ = [
     "load",
     "format",
-    "NoEnv",
     "var",
 ]

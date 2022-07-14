@@ -1,12 +1,12 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from pelorus.config import NoEnv, var
+from pelorus.config import var
 
 
 @dataclass
 class ExampleCommittimeConfig:
-    kube_client: object = var(env_lookups=NoEnv)
+    kube_client: object = var(env_lookups=None)
     api_user: Optional[str] = var(
         default=None, env_lookups=["API_USER", "GIT_USER", "GITHUB_USER", "USER"]
     )
