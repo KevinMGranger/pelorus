@@ -2,13 +2,13 @@ import os
 from dataclasses import fields, is_dataclass
 from typing import Any, Mapping, Type, TypeVar
 
-from pelorus.config.loading.env import _ENV_LOOKUPS_METADATA_KEY, ValueFinder
+from pelorus.config.loading.env import _ENV_LOOKUPS, ValueFinder
 from pelorus.config.loading.errors import MissingConfigDataError, MissingDataError
 
 ConfigClass = TypeVar("ConfigClass")
 
 
-def load(
+def load_from_env(
     cls: Type[ConfigClass],
     other: dict[str, Any] = {},
     *,
@@ -39,4 +39,4 @@ def load(
     return cls(**field_args)
 
 
-__all__ = ["load", "MissingConfigDataError", "_ENV_LOOKUPS_METADATA_KEY"]
+__all__ = ["load_from_env", "MissingConfigDataError", "_ENV_LOOKUPS"]

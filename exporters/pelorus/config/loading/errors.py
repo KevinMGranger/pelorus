@@ -1,7 +1,10 @@
+"""
+Environment loading errors, meant to be detailed and used in aggregate.
+"""
 from dataclasses import dataclass
 from typing import Collection, Sequence
 
-from pelorus.config.common import _DEFAULT_KEYWORD
+from pelorus.config.loading.common import _DEFAULT_KEYWORD
 
 
 class MissingDataError(Exception):

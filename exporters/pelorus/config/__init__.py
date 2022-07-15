@@ -55,7 +55,7 @@ class AdvancedConfiguration:
     should_pass_tests: bool = var(log=True)
     whoami: str = var(env_lookups=["API_USER", "USER"])
     optional_name: str = var(default="someone")
-    optional_list: list[str] = var(default_factory=list)
+    optional_list: list[str] = var(factory=list)
     api_client: Client = var(env_lookups=None)
 
 Notable differences:
@@ -94,14 +94,19 @@ See each individual function for details.
 # token: str  # will not be logged
 # sensitive_argument: str = field(metadata=config(log=True))  # will not be logged
 # major_key: str = field(metadata=config(log=False))  # will be logged
-# namespaces: list[str] = field(default_factory=list)
+# namespaces: list[str] = field(factory=list)
 
 
-from dataclasses import MISSING, field
-from typing import Any, Callable, Literal, Sequence, TypeVar, Union, overload
+# from dataclasses import MISSING, field
+from typing import Any, Callable, Literal, Optional, Sequence, TypeVar, Union, overload
 
-from pelorus.config.loading import _ENV_LOOKUPS_METADATA_KEY, load
-from pelorus.config.logging import _LOG_METADATA_KEY, format
+import attrs
+
+from pelorus.config._class_setup import config
+from pelorus.config.loading import _ENV_LOOKUPS, load_from_env
+from pelorus.config.logging import _SHOULD_LOG, values
+
+from ._attrs_compat import NOTHING
 
 FieldType = TypeVar("FieldType")
 
@@ -110,8 +115,8 @@ FieldType = TypeVar("FieldType")
 def var(
     *,
     default: FieldType,
-    log: Union[bool, None, Literal[MISSING]] = MISSING,
-    env_lookups: Union[Sequence[str], None, Literal[MISSING]] = MISSING,
+    log: Optional[bool] = None,
+    env_lookups: Union[Sequence[str], None, Literal[NOTHING]] = NOTHING,
     other_field_args: dict[str, Any] = {},
 ) -> FieldType:
     ...
@@ -120,9 +125,9 @@ def var(
 @overload
 def var(
     *,
-    default_factory: Callable[[], FieldType],
-    log: Union[bool, None, Literal[MISSING]] = MISSING,
-    env_lookups: Union[Sequence[str], None, Literal[MISSING]] = MISSING,
+    factory: Callable[[], FieldType],
+    log: Optional[bool] = None,
+    env_lookups: Union[Sequence[str], None, Literal[NOTHING]] = NOTHING,
     other_field_args: dict[str, Any] = {},
 ) -> FieldType:
     ...
@@ -131,8 +136,8 @@ def var(
 @overload
 def var(
     *,
-    log: Union[bool, None, Literal[MISSING]] = MISSING,
-    env_lookups: Union[Sequence[str], None, Literal[MISSING]] = MISSING,
+    log: Optional[bool] = None,
+    env_lookups: Union[Sequence[str], None, Literal[NOTHING]] = NOTHING,
     other_field_args: dict[str, Any] = {},
 ) -> Any:
     ...
@@ -140,10 +145,10 @@ def var(
 
 def var(
     *,
-    default: Any = MISSING,
-    default_factory: Any = MISSING,
-    log: Union[bool, None, Literal[MISSING]] = None,
-    env_lookups: Union[Sequence[str], None, Literal[MISSING]] = MISSING,
+    default: Any = NOTHING,
+    factory: Any = NOTHING,
+    log: Optional[bool] = None,
+    env_lookups: Union[Sequence[str], None, Literal[NOTHING]] = NOTHING,
     other_field_args: dict[str, Any] = {},
 ):
     """
@@ -153,7 +158,7 @@ def var(
     This is a convenience wrapper over `dataclasses.field`.
 
     `default` will be used if the variable is not found in the environment.
-    Use `default_factory` if the default is mutable (e.g. a list).
+    Use `factory` if the default is mutable (e.g. a list).
 
     `log` manually controls if the field is logged, disregarding the automatic "redact" check.
 
@@ -167,16 +172,14 @@ def var(
     See also: `dataclasses.field`.
     """
     args = other_field_args | dict(
-        metadata={_LOG_METADATA_KEY: log, _ENV_LOOKUPS_METADATA_KEY: env_lookups},
-        default=default,
-        default_factory=default_factory,
+        metadata={_SHOULD_LOG: log, _ENV_LOOKUPS: env_lookups},
     )
+    if default is not NOTHING:
+        args["default"] = default
+    if factory is not NOTHING:
+        args["factory"] = factory
 
-    return field(**args)
+    return attrs.field(**args)
 
 
-__all__ = [
-    "load",
-    "format",
-    "var",
-]
+__all__ = ["load_from_env", "values", "var", "config"]

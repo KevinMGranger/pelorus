@@ -14,10 +14,10 @@ from typing import (
     Union,
 )
 
-from pelorus.config.common import _DEFAULT_KEYWORD, _get_metadata_value
+from pelorus.config.loading.common import _DEFAULT_KEYWORD
 from pelorus.config.loading.errors import MissingDefault, MissingOther, MissingVariable
 
-_ENV_LOOKUPS_METADATA_KEY = "__pelorus_config_env_lookups"
+_ENV_LOOKUPS = "__pelorus_config_env_lookups"
 
 # TODO: the way we're doing it, "unset" and "DEFAULT" are treated the same if a default is set.
 # That's the way get_env_vars currently does it.
@@ -46,17 +46,14 @@ class ValueFinder(Generic[ValueType]):
         Will default to the field name in uppercase.  If disabled, will return an empty sequence.
         """
         field_name = self.field.name
-        env_lookups = _get_metadata_value(
-            self.field.metadata, _ENV_LOOKUPS_METADATA_KEY, Optional[Sequence[str]]
-        )
 
-        if env_lookups is MISSING:
+        if _ENV_LOOKUPS not in self.field.metadata:
             # default to the variable's name in uppercase.
-            env_lookups = [field_name.upper()]
-        elif not env_lookups:
-            env_lookups = tuple()
+            return [field_name.upper()]
 
-        return env_lookups
+        env_lookups: Optional[Sequence[str]] = self.field.metadata[_ENV_LOOKUPS]
+
+        return env_lookups if env_lookups is not None else tuple()
 
     def all_matches(self):
         """
