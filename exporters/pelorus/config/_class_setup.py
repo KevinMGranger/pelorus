@@ -5,6 +5,7 @@ import attrs
 import attrs.converters
 from attrs import Attribute
 
+from pelorus.config.loading.env import env_lookups
 from pelorus.config.logging import values
 
 from .converters import _converter_for
@@ -31,24 +32,27 @@ def _str_method_is_user_defined(cls: type) -> bool:
     return any("__str__" in c.__dict__ for c in classes_to_check)
 
 
-def _set_up_converter(attr: Attribute) -> Attribute:
+def _set_up_converter(field: Attribute) -> Attribute:
     """
     Sets the converter based on the annotated type, unless one is already given.
     """
-    assert attr.type is not None
 
-    if attr.type in (str, Optional[str]):
-        return attr
+    if field.converter is not None:
+        return field
 
-    converter = _converter_for(attr.type)
+    assert field.type is not None
 
-    # TODO: okay if not loaded from env.
-    if converter is None:
+    if field.type in (str, Optional[str]):
+        return field
+
+    converter = _converter_for(field.type)
+
+    if converter is None and env_lookups(field):
         raise TypeError(
-            f"Attribute {attr.name} had type {attr.type}, but no converter could be found for it."
+            f"Attribute {field.name} had type {field.type}, but no converter could be found for it."
         )
 
-    return attr.evolve(converter=converter)
+    return field.evolve(converter=converter)
 
 
 def _hook(cls: type, fields: list[attrs.Attribute]) -> list[attrs.Attribute]:

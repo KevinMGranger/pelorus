@@ -1,8 +1,6 @@
-from functools import cached_property
 from typing import Any, Literal, Mapping, Optional, Sequence, Union
 
-import attrs
-from attr import Attribute
+from attrs import Attribute
 
 from pelorus.config._attrs_compat import NOTHING
 from pelorus.config.common import _DEFAULT_KEYWORD
@@ -19,31 +17,32 @@ _ENV_LOOKUPS = "__pelorus_config_env_lookups"
 # We need to discuss that though, since that's not how `get_env_vars` works.
 
 
-@attrs.define(slots=False)
+def env_lookups(field: Attribute) -> Sequence[str]:
+    """
+    Gets the list of environment variable names to look up for this field.
+    Will default to the field name in uppercase.  If disabled, will return an empty sequence.
+    """
+    field_name = field.name
+
+    if _ENV_LOOKUPS not in field.metadata:
+        # default to the variable's name in uppercase.
+        return [field_name.upper()]
+
+    env_lookups: Optional[Sequence[str]] = field.metadata[_ENV_LOOKUPS]
+
+    # if None or an empty sequence, env_lookups are not desired.
+    return env_lookups if env_lookups is not None else tuple()
+
+
 class ValueFinder:
     """
     A ValueFinder looks for the value described by `field` in the environment `env`.
     """
 
-    field: Attribute
-    env: Mapping[str, str]
-
-    @cached_property
-    def env_lookups(self) -> Sequence[str]:
-        """
-        Gets the list of environment variable names to look up for this field.
-        Will default to the field name in uppercase.  If disabled, will return an empty sequence.
-        """
-        field_name = self.field.name
-
-        if _ENV_LOOKUPS not in self.field.metadata:
-            # default to the variable's name in uppercase.
-            return [field_name.upper()]
-
-        env_lookups: Optional[Sequence[str]] = self.field.metadata[_ENV_LOOKUPS]
-
-        # if None or an empty sequence, env_lookups are not desired.
-        return env_lookups if env_lookups is not None else tuple()
+    def __init__(self, field: Attribute, env: Mapping[str, str]):
+        self.field = field
+        self.env = env
+        self.env_lookups = env_lookups(field)
 
     def all_matches(self):
         """

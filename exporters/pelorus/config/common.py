@@ -22,6 +22,8 @@ class NothingDict(UserDict, MutableMapping[K, V]):
     but that key will no longer show up for `key in container` checks, etc.
     """
 
+    # TODO: should use view objects, not iterators
+
     def __contains__(self, key):
         value = self.data.get(key, NOTHING)
         return value is not NOTHING
@@ -30,6 +32,8 @@ class NothingDict(UserDict, MutableMapping[K, V]):
         value = self.data.get(key, NOTHING)
         if value is NOTHING:
             raise KeyError
+        else:
+            return value
 
     def get(self, key, default=None):
         value = self.data.get(key, NOTHING)
