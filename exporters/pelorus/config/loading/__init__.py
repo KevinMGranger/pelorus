@@ -1,7 +1,9 @@
 import os
-from dataclasses import fields, is_dataclass
 from typing import Any, Mapping, Type, TypeVar
 
+from attrs import fields
+
+from pelorus.config._attrs_compat import NOTHING
 from pelorus.config.loading.env import _ENV_LOOKUPS, ValueFinder
 from pelorus.config.loading.errors import MissingConfigDataError, MissingDataError
 
@@ -20,23 +22,22 @@ def load_from_env(
 
     See this module's documentation for details.
     """
-    if not is_dataclass(cls):
-        raise TypeError("load must be passed a dataclass")
-
-    field_args = dict(other)
+    kwargs = dict(other)
 
     missing: list[MissingDataError] = []
 
     for f in fields(cls):
         try:
-            field_args[f.name] = ValueFinder(f, env).find(other)
+            value = ValueFinder(f, env).find(other)
+            if value is not NOTHING:
+                kwargs[f.name] = value
         except MissingDataError as e:
             missing.append(e)
 
     if missing:
         raise MissingConfigDataError(cls.__name__, missing)
 
-    return cls(**field_args)
+    return cls(**kwargs)
 
 
 __all__ = ["load_from_env", "MissingConfigDataError", "_ENV_LOOKUPS"]

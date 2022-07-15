@@ -1,19 +1,10 @@
-import typing
-from dataclasses import MISSING, Field, dataclass
-from distutils.util import strtobool
 from functools import cached_property
-from typing import (
-    Any,
-    Callable,
-    Collection,
-    Generic,
-    Mapping,
-    Optional,
-    Sequence,
-    TypeVar,
-    Union,
-)
+from typing import Any, Literal, Mapping, Optional, Sequence, Union
 
+import attrs
+from attr import Attribute
+
+from pelorus.config._attrs_compat import NOTHING
 from pelorus.config.loading.common import _DEFAULT_KEYWORD
 from pelorus.config.loading.errors import MissingDefault, MissingOther, MissingVariable
 
@@ -27,16 +18,14 @@ _ENV_LOOKUPS = "__pelorus_config_env_lookups"
 # TODO: now, counting an empty as unset: yes. that's worth doing Optional for.
 # We need to discuss that though, since that's not how `get_env_vars` works.
 
-ValueType = TypeVar("ValueType")
 
-
-@dataclass
-class ValueFinder(Generic[ValueType]):
+@attrs.define
+class ValueFinder:
     """
     A ValueFinder looks for the value described by `field` in the environment `env`.
     """
 
-    field: Field[ValueType]
+    field: Attribute
     env: Mapping[str, str]
 
     @cached_property
@@ -53,6 +42,7 @@ class ValueFinder(Generic[ValueType]):
 
         env_lookups: Optional[Sequence[str]] = self.field.metadata[_ENV_LOOKUPS]
 
+        # if None or an empty sequence, env_lookups are not desired.
         return env_lookups if env_lookups is not None else tuple()
 
     def all_matches(self):
@@ -60,72 +50,24 @@ class ValueFinder(Generic[ValueType]):
         Yield all name-value pairs that were present in the mapping.
         """
         for name in self.env_lookups:
-            value = self.env.get(name)
-            if value is not None:
-                yield (name, value)
+            if name in self.env:
+                yield (name, self.env[name])
 
-    def _get_default(self, env_name: Optional[str]) -> ValueType:
+    # TODO: whether or not `other` gets passed here, whether or not it gets updated
+    # to actually makes the class... gotta be consistent, make it clean.
+    # It's nice that all error handling is here, y'know?
+    def find(self, other: dict[str, Any]) -> Union[Any, str, Literal[NOTHING]]:
         """
-        Get the default value for this field.
-        `env_name` is used for error reporting if the default is not present.
+        Attempt to find the value given for this field.
+        If present or handled by other, return the value.
+        If missing (or set to default) but attrs will handle the default, return NOTHING.
+
+        If missing (or set to default) but attrs _does not_ have a default, raise an error.
+        If set to ignore the environment but not present in env_lookups, raise an error.
         """
-        if self.field.default is not MISSING:
-            return self.field.default
-        elif self.field.default_factory is not MISSING:
-            return self.field.default_factory()
-        else:
-            if env_name is not None:
-                raise MissingDefault(self.field.name, env_name)
-            else:
-                raise MissingVariable(self.field.name, self.env_lookups)
-
-    def transform_value(self, value: str) -> ValueType:
-        """
-        Transforms a given value based on the type argument:
-
-        If a boolean, use strtobool.
-        If a collections.abc.Collection (that is also callable), split on ',', strip whitespace.
-        If an Optional, ignore, since we already have a value.
-
-        TODO: arbitrarily nested data types probably aren't necessary, but would be easily done here.
-        """
-
-        type_ = self.field.type
-
-        # plain 'ol types first
-        if type_ is str:
-            return value  # type: ignore
-        elif type_ is bool:
-            return strtobool(value)  # type: ignore
-
-        # generic types next.
-        # for fancy typing like `list[str]` or `Optional[str]`, we look at the "origin" and "args".
-        # list[str]'s origin is `list`, and its args are `(str,)`.
-        # Optional[str]'s origin is `typing.Union` and its args are `(str, type(None))`
-        # (since Optional is just an alias for Union[None, OTHER_TYPE])
-
-        generic_origin = typing.get_origin(type_)
-        generic_args = typing.get_args(type_)
-
-        if generic_origin is Union and set(generic_args) == {str, type(None)}:
-            # optional str, just return value since we already have it.
-            return value  # type: ignore
-        elif (
-            generic_origin is not None
-            and issubclass(generic_origin, Collection)
-            and issubclass(generic_origin, Callable)
-            and generic_args == (str,)
-        ):
-            # TODO: pyright says generic_origin is Never. Either I have a logic bug or they do.
-            return generic_origin(part.strip() for part in value.split(","))
-
-        raise TypeError(f"Unsupported type for config object: {type_}")
-
-    def find(self, other: dict[str, Any]):
-        """
-        Find (and convert) the value for this field,
-        using `other` if it should override or be preferred.
-        """
+        # TODO: look at other first?
+        # or is that handled elsewhere?
+        # TODO: remove other, then.
         env_lookups = self.env_lookups
         if not env_lookups:
             # deliberately given an empty list or None,
@@ -137,7 +79,18 @@ class ValueFinder(Generic[ValueType]):
 
         for env_name, env_value in self.all_matches():
             if env_value == _DEFAULT_KEYWORD:
-                return self._get_default(env_name)
-            return self.transform_value(env_value)
+                # make sure there is a default configured in the first place.
+                # otherwise this will fail when the class is set up.
+                if self.field.default is NOTHING:
+                    raise MissingDefault(self.field.name, env_name)
+                # else attrs has a default, so we don't need to set it.
+                # Give NOTHING to the kwarg dict.
+                return NOTHING
+            else:
+                return env_value
 
-        return self._get_default(None)
+        # nothing found in env, nothing found in other. If optional that's fine but otherwise...
+        if self.field.default is NOTHING:
+            raise MissingVariable(self.field.name, env_lookups)
+        else:
+            return NOTHING
