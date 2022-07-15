@@ -22,7 +22,7 @@ def _should_be_logged(f: Attribute) -> bool:
         return bool(log)
 
 
-def values(obj: object):
+def format_values(obj: object):
     """
     Yields each field formatted as name=value,
     redacting the value for sensitive fields.

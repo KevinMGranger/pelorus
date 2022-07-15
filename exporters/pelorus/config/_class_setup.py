@@ -6,7 +6,7 @@ import attrs.converters
 from attrs import Attribute
 
 from pelorus.config.loading.env import env_lookups
-from pelorus.config.logging import values
+from pelorus.config.logging import format_values
 
 from .converters import _converter_for
 
@@ -15,7 +15,7 @@ def __str__(self):
     """
     Standardized __str__ for config classes.
     """
-    return type(self).__name__ + "\n" + "\n".join(values(self))
+    return type(self).__name__ + "\n" + "\n".join(format_values(self))
 
 
 def _str_method_is_user_defined(cls: type) -> bool:

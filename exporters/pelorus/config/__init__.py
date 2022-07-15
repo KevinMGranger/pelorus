@@ -5,19 +5,21 @@ Configuration management needs to be consistent, and easy to get right.
 Configuration should be logged in order to make debugging easier.
 However, it must be hard to accidentally log sensitive information (API credentials, etc.).
 
-This module handles the above goals by using `dataclasses`.
+This module handles the above goals by using `attrs`.
 
 # A Simple Example
 
 ```python
-@dataclass
+from pelorus.config import config, load_from_env, var
+
+@config
 class MyConfiguration:
     username: str = "GVR"
     password: str
     namespaces: list[str]
 ```
 
-Calling `load(MyConfiguration)` will perform the following:
+Calling `load_from_env(MyConfiguration)` will perform the following:
 
 1. Look for the environment variable `USERNAME`.
 2. Look for the environment variable `PASSWORD`.
@@ -27,9 +29,8 @@ Calling `load(MyConfiguration)` will perform the following:
   If `PASSWORD` is missing, a TypeError will be thrown.
   If `NAMESPACES` is present but empty, an empty list will be given.
 
-With that instance, calling `format(instance)` will yield an iterable.
-The first element is the class's name (MyConfiguration),
-and the following elements represent each field:
+With that instance, calling `format_values(instance)` will yield an iterable,
+one element per field:
 
 2. `username=GVR`
 3. `password=REDACTED`.
@@ -40,16 +41,17 @@ and the following elements represent each field:
 | type      | transformation from str                                 |
 |-----------|---------------------------------------------------------|
 | str       | set as-is                                               |
-| bool      | distutils.util.strtobool                                |
 | list[str] | split on `,` with whitespace stripped from each element |
 | set[str]  | same as above                                           |
+
+Other types may be supported with customization and converters:
 
 # Customization
 
 You may need to deviate from the default behavior, or pass an argument that won't come from the environment.
 You can customize each field with `var`:
 
-@dataclass
+@config
 class AdvancedConfiguration:
     anonymous_user: str = var(log=False)
     should_pass_tests: bool = var(log=True)
@@ -66,7 +68,63 @@ Notable differences:
 - optional_name and optional_list are optional.
 
 api_client is not looked for at all. You will need to pass it when using `load`:
-`load(AdvancedConfiguration, other=dict(api_client=client_instance))`
+`load_from_env(AdvancedConfiguration, other=dict(api_client=client_instance))`
+
+## Converters
+
+`var` wraps `attrs.field`. You can support fancier type transformations using converters.
+Attrs even allows them to be composed.
+
+You should consider supporting passing in an object of the target type,
+having each converter skip it if it's already correct.
+
+```python
+from typing import Optional
+from pelorus.config import vars, config
+from pelorus.config.converters import comma_separated
+from attrs.converters import default_if_none
+
+def treat_empty_str_as_none(value: Optional[str]) -> Optional[str]:
+    if value is None or value == "":
+        return None
+    else:
+        return value
+
+
+@config
+class FancyConfig:
+    not_quite_a_list: SomeCollection[str] = var(field_args=dict(
+            converters=comma_separated(SomeCollection)
+            ))
+
+    required_int_with_empty_as_zero: int = var(field_args=dict(
+            converters=[treat_empty_str_as_none, default_if_none(default=0), int]
+    ))
+```
+
+The env vars:
+NOT_QUITE_A_LIST="foo,bar"
+REQUIRED_INT_WITH_EMPTY_AS_ZERO="3"
+
+Will result in the equivalent of:
+```python
+FancyConfig(
+    not_quite_a_list=SomeCollection("foo", "bar"),
+    required_int_with_empty_as_zero=4
+    )
+```
+
+While the env vars:
+NOT_QUITE_A_LIST=""
+REQUIRED_INT_WITH_EMPTY_AS_ZERO=""
+
+Will result in the equivalent of:
+```python
+FancyConfig(
+    not_quite_a_list=SomeCollection(),
+    required_int_with_empty_as_zero=0
+    )
+```
 
 # Details
 
@@ -76,27 +134,6 @@ See each individual function for details.
 # TODO: this entire module would be cleaner if we had 3.10's `match`.
 
 
-# TODO: we should consider making this one decorator.
-# This could change the class's __str__ for you, making sure
-# credentials aren't accidentally printed anywhere.
-# Making this work with typing is really, really hard though.
-# Using a parent class mix-in _could_ work,
-# but we'd need to check that the child class used the dataclass decorator.
-# Is that even possible? If it is, is it worth the complexity?
-
-
-# @dataclass
-# class CommittimeExporterConfig:
-#     test: str
-# user: str = field(default=2)
-# user: str = var(default=2)
-# user: str = field(metadata=config(env_lookups=["GIT_USER", "GITHUB_USER", "USER"]))
-# token: str  # will not be logged
-# sensitive_argument: str = field(metadata=config(log=True))  # will not be logged
-# major_key: str = field(metadata=config(log=False))  # will be logged
-# namespaces: list[str] = field(factory=list)
-
-
 from typing import Any, Callable, Literal, Optional, Sequence, TypeVar, Union, overload
 
 import attrs
@@ -104,17 +141,15 @@ import attrs
 from pelorus.config._class_setup import config
 from pelorus.config.common import NothingDict
 from pelorus.config.loading import _ENV_LOOKUPS, load_from_env
-from pelorus.config.logging import _SHOULD_LOG, values
+from pelorus.config.logging import _SHOULD_LOG, format_values
 
 from ._attrs_compat import NOTHING
 
-
-def _maybe_set(dict_: dict[str, Any], key: str, value: Union[Any, Literal[NOTHING]]):
-    if value is not NOTHING:
-        dict_[key] = value
-
-
 FieldType = TypeVar("FieldType")
+
+# TODO: make converters first-class if we can?
+# That might really mess with the typing, which I don't want to do.
+# Is this something that 3.10 could do with typing.ParamSpec and typing.Concat ?
 
 
 @overload
@@ -123,7 +158,7 @@ def var(
     default: FieldType,
     log: Optional[bool] = None,
     env_lookups: Union[Sequence[str], None, Literal[NOTHING]] = NOTHING,
-    other_field_args: dict[str, Any] = {},
+    field_args: dict[str, Any] = {},
 ) -> FieldType:
     ...
 
@@ -134,7 +169,7 @@ def var(
     factory: Callable[[], FieldType],
     log: Optional[bool] = None,
     env_lookups: Union[Sequence[str], None, Literal[NOTHING]] = NOTHING,
-    other_field_args: dict[str, Any] = {},
+    field_args: dict[str, Any] = {},
 ) -> FieldType:
     ...
 
@@ -144,7 +179,7 @@ def var(
     *,
     log: Optional[bool] = None,
     env_lookups: Union[Sequence[str], None, Literal[NOTHING]] = NOTHING,
-    other_field_args: dict[str, Any] = {},
+    field_args: dict[str, Any] = {},
 ) -> Any:
     ...
 
@@ -155,7 +190,7 @@ def var(
     factory: Any = NOTHING,
     log: Optional[bool] = None,
     env_lookups: Union[Sequence[str], None, Literal[NOTHING]] = NOTHING,
-    other_field_args: dict[str, Any] = {},
+    field_args: dict[str, Any] = {},
 ):
     """
     Customize a variable in a config class.
@@ -180,10 +215,10 @@ def var(
     metadata = NothingDict({_SHOULD_LOG: log, _ENV_LOOKUPS: env_lookups})
 
     args = NothingDict(
-        **other_field_args, metadata=metadata, default=default, factory=factory
+        **field_args, metadata=metadata, default=default, factory=factory
     )
 
     return attrs.field(**args)
 
 
-__all__ = ["load_from_env", "values", "var", "config"]
+__all__ = ["load_from_env", "format_values", "var", "config"]
