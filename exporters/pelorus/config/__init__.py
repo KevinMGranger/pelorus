@@ -97,16 +97,22 @@ See each individual function for details.
 # namespaces: list[str] = field(factory=list)
 
 
-# from dataclasses import MISSING, field
 from typing import Any, Callable, Literal, Optional, Sequence, TypeVar, Union, overload
 
 import attrs
 
 from pelorus.config._class_setup import config
+from pelorus.config.common import NothingDict
 from pelorus.config.loading import _ENV_LOOKUPS, load_from_env
 from pelorus.config.logging import _SHOULD_LOG, values
 
 from ._attrs_compat import NOTHING
+
+
+def _maybe_set(dict_: dict[str, Any], key: str, value: Union[Any, Literal[NOTHING]]):
+    if value is not NOTHING:
+        dict_[key] = value
+
 
 FieldType = TypeVar("FieldType")
 
@@ -171,13 +177,11 @@ def var(
 
     See also: `dataclasses.field`.
     """
-    args = other_field_args | dict(
-        metadata={_SHOULD_LOG: log, _ENV_LOOKUPS: env_lookups},
+    metadata = NothingDict({_SHOULD_LOG: log, _ENV_LOOKUPS: env_lookups})
+
+    args = NothingDict(
+        **other_field_args, metadata=metadata, default=default, factory=factory
     )
-    if default is not NOTHING:
-        args["default"] = default
-    if factory is not NOTHING:
-        args["factory"] = factory
 
     return attrs.field(**args)
 

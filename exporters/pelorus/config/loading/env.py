@@ -5,7 +5,7 @@ import attrs
 from attr import Attribute
 
 from pelorus.config._attrs_compat import NOTHING
-from pelorus.config.loading.common import _DEFAULT_KEYWORD
+from pelorus.config.common import _DEFAULT_KEYWORD
 from pelorus.config.loading.errors import MissingDefault, MissingOther, MissingVariable
 
 _ENV_LOOKUPS = "__pelorus_config_env_lookups"
@@ -19,7 +19,7 @@ _ENV_LOOKUPS = "__pelorus_config_env_lookups"
 # We need to discuss that though, since that's not how `get_env_vars` works.
 
 
-@attrs.define
+@attrs.define(slots=False)
 class ValueFinder:
     """
     A ValueFinder looks for the value described by `field` in the environment `env`.
