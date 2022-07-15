@@ -64,4 +64,6 @@ def _hook(cls: type, fields: list[attrs.Attribute]) -> list[attrs.Attribute]:
     return [_set_up_converter(field) for field in fields]
 
 
-config = partial(attrs.define, field_transformer=_hook, str=False, auto_attribs=True)
+_CONFIG_KWARGS = dict(field_transformer=_hook, str=False, auto_attribs=True)
+
+config = partial(attrs.define, **_CONFIG_KWARGS)
