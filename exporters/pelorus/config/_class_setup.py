@@ -1,3 +1,6 @@
+"""
+Config class setup functions.
+"""
 from functools import partial
 from typing import Optional
 

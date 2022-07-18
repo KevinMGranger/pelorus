@@ -1,3 +1,10 @@
+"""
+Tools used by multiple modules within the config module.
+
+1. The pelorus default keyword is put in one easy-to-find place.
+2. A customized dict that makes working with attrs's NOTHING easier,
+  by treating it a bit more like javascript's `undefined`: it represents absence.
+"""
 import os
 from collections import UserDict
 from typing import Literal, MutableMapping, TypeVar, Union
@@ -20,9 +27,8 @@ class NothingDict(UserDict, MutableMapping[K, V]):
     `NOTHING` values are still kept internally, but not exposed for any queries.
     For example, setting a key to `NOTHING` will keep that key's presence in the dict,
     but that key will no longer show up for `key in container` checks, etc.
+    This makes debugging a bit easier.
     """
-
-    # TODO: should use view objects, not iterators
 
     def __contains__(self, key):
         value = self.data.get(key, NOTHING)

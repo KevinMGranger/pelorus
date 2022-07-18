@@ -129,17 +129,20 @@ FancyConfig(
 # Details
 
 See each individual function for details.
+
+# Development
+
+See [DEVELOPING.md](./DEVELOPING.md) for details.
 """
 
 # TODO: this entire module would be cleaner if we had 3.10's `match`.
-
 
 from typing import Any, Callable, Literal, Optional, Sequence, TypeVar, Union, overload
 
 import attrs
 
 from pelorus.config._class_setup import config
-from pelorus.config.common import NothingDict
+from pelorus.config._common import NothingDict
 from pelorus.config.loading import _ENV_LOOKUPS, load_from_env
 from pelorus.config.logging import _SHOULD_LOG, format_values
 

@@ -1,3 +1,4 @@
+# override's attrs.NOTHING's type in a way that's nicer for type checking.
 import enum
 
 class _NothingType(enum.Enum):

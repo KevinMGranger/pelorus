@@ -5,7 +5,7 @@ from attrs import fields
 
 from pelorus.config._attrs_compat import NOTHING
 from pelorus.config.loading.env import _ENV_LOOKUPS, ValueFinder
-from pelorus.config.loading.errors import MissingConfigDataError, MissingDataError
+from pelorus.config.loading._errors import MissingConfigDataError, MissingDataError
 
 ConfigClass = TypeVar("ConfigClass")
 
@@ -19,8 +19,6 @@ def load_from_env(
     """
     Construct the `cls`, looking up variables in `env` (the OS's environment by default),
     overriding them with the contents of `other`.
-
-    See this module's documentation for details.
     """
     kwargs = dict(other)
 

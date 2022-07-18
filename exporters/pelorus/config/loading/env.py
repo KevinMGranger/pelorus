@@ -3,8 +3,8 @@ from typing import Any, Literal, Mapping, Optional, Sequence, Union
 from attrs import Attribute
 
 from pelorus.config._attrs_compat import NOTHING
-from pelorus.config.common import _DEFAULT_KEYWORD
-from pelorus.config.loading.errors import MissingDefault, MissingOther, MissingVariable
+from pelorus.config._common import _DEFAULT_KEYWORD
+from pelorus.config.loading._errors import MissingDefault, MissingOther, MissingVariable
 
 _ENV_LOOKUPS = "__pelorus_config_env_lookups"
 
@@ -93,3 +93,6 @@ class ValueFinder:
             raise MissingVariable(self.field.name, env_lookups)
         else:
             return NOTHING
+
+
+__all__ = ["env_lookups"]
