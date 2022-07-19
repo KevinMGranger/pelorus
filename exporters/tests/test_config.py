@@ -1,4 +1,7 @@
 from typing import Optional
+
+import attrs
+
 from pelorus.config import config as pelorus_config
 from pelorus.config import load_from_env, var
 
@@ -8,13 +11,15 @@ def test_loading_simple_string():
     class SimpleCase:
         unannotated: str
         with_var: str = var()
+        field_works: str = attrs.field()  # type: ignore # FIXME: why does pyright complain here?
 
-    env = dict(UNANNOTATED="unannotated", WITH_VAR="with_var")
+    env = dict(UNANNOTATED="unannotated", WITH_VAR="with_var", FIELD_WORKS="field")
 
     loaded = load_from_env(SimpleCase, env=env)
 
     assert loaded.unannotated == env["UNANNOTATED"]
     assert loaded.with_var == env["WITH_VAR"]
+    assert loaded.field_works == env["FIELD_WORKS"]
 
 
 def test_default():
@@ -47,8 +52,9 @@ def test_load_collections():
     @pelorus_config
     class Collections:
         a_set: set[str]
-        a_tuple: list[str]
+        a_tuple: tuple[str]
         a_list: list[str]
+        default_list: list[str] = var(factory=list)
 
     expected_list = ["one", "two", "three"]
     expected_tuple = ("one", "two", "three")
@@ -63,6 +69,7 @@ def test_load_collections():
     assert loaded.a_set == expected_set
     assert loaded.a_tuple == expected_tuple
     assert loaded.a_list == expected_list
+    assert loaded.default_list == []
 
 
 def test_loading_from_other():
@@ -75,3 +82,29 @@ def test_loading_from_other():
     loaded = load_from_env(OtherConfig, other=dict(foo=foo))
 
     assert loaded.foo is foo
+
+
+def test_logging():
+    @pelorus_config
+    class Loggable:
+        regular_field: str = var(default="LOG ME 1")
+
+        sensitive_credential: str = var(default="REDACT ME 1")
+        log_this_credential_anyway: str = var(default="LOG ME 2", log=True)
+        explicitly_sensitive: str = var(default="REDACT ME 2", log=False)
+
+        _private_field: str = var(default="SHOULD BE ABSENT 1")
+        _private_but_log_me_anyway: str = var(default="LOG ME 3", log=True)
+        _private_but_redact_me: str = var(default="REDACT ME 3", log=False)
+        not_private_but_skip_logging: str = var(default="SHOULD BE ABSENT 2", log=None)
+
+    # TODO: test for provenance
+
+    instance = load_from_env(Loggable, env=dict())
+
+    logged = str(instance)
+
+    assert "REDACT ME" not in logged
+    assert "SHOULD BE ABSENT" not in logged
+    for i in range(1, 4):
+        assert f"LOG ME {i}" in logged
