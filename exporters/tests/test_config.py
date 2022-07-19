@@ -1,22 +1,14 @@
-from dataclasses import dataclass, field
-from typing import Optional
-
-from pelorus.config import var
+from pelorus.config import config as pelorus_config
+from pelorus.config import load_from_env, var
 
 
-@dataclass
-class ExampleCommittimeConfig:
-    kube_client: object = var(env_lookups=None)
-    api_user: Optional[str] = var(
-        default=None, env_lookups=["API_USER", "GIT_USER", "GITHUB_USER", "USER"]
-    )
-    token: Optional[str] = var(
-        default=None, env_lookups=["TOKEN", "GIT_TOKEN", "GITHUB_TOKEN"]
-    )
+def test_loading_simple_string():
+    @pelorus_config
+    class DefaultCase:
+        foo: str = var()
 
-    git_api: str = var(default="", env_lookups="GIT_API GITHUB_API".split())
-    git_provider: str = "github"
+    env = dict(FOO="bar")
 
-    tls_verify: bool = True
+    loaded = load_from_env(DefaultCase, env=env)
 
-    namespaces: set[str] = field(default_factory=set)
+    assert loaded.foo == env["FOO"]
