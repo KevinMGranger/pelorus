@@ -79,3 +79,6 @@ class NothingDict(UserDict, MutableMapping[K, V]):
             k, v = self.data.popitem()
             if v is not NOTHING:
                 return v
+
+
+__all__ = ["NothingDict"]

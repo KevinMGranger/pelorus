@@ -1,3 +1,5 @@
+from typing import Mapping
+
 import attrs
 from attrs import Attribute
 
@@ -27,6 +29,7 @@ def format_values(obj: object):
     Yields each field formatted as name=value,
     redacting the value for sensitive fields.
     """
+    value_sources: Mapping[str, str] = getattr(obj, "__value_sources", dict())
 
     for f in attrs.fields(type(obj)):
         if _should_be_logged(f):
@@ -34,4 +37,8 @@ def format_values(obj: object):
         else:
             value = "REDACTED"
 
-        yield f"{f.name}={value}"
+        if f.name in value_sources:
+            source = ", " + value_sources[f.name]
+        else:
+            source = ""
+        yield f"{f.name}={value}{source}"

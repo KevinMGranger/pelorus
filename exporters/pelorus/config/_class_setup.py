@@ -8,7 +8,7 @@ import attrs
 import attrs.converters
 from attrs import Attribute
 
-from pelorus.config.loading.env import env_lookups
+from pelorus.config.loading.env import field_env_lookups
 from pelorus.config.logging import format_values
 
 from .converters import _converter_for
@@ -18,7 +18,8 @@ def __str__(self):
     """
     Standardized __str__ for config classes.
     """
-    return type(self).__name__ + "\n" + "\n".join(format_values(self))
+    config_name = type(self).__name__
+    return config_name + "\n" + "\n".join(format_values(self))
 
 
 def _str_method_is_user_defined(cls: type) -> bool:
@@ -50,7 +51,7 @@ def _set_up_converter(field: Attribute) -> Attribute:
 
     converter = _converter_for(field.type)
 
-    if converter is None and env_lookups(field):
+    if converter is None and field_env_lookups(field):
         raise TypeError(
             f"Attribute {field.name} had type {field.type}, but no converter could be found for it."
         )

@@ -137,13 +137,25 @@ See [DEVELOPING.md](./DEVELOPING.md) for details.
 
 # TODO: this entire module would be cleaner if we had 3.10's `match`.
 
-from typing import Any, Callable, Literal, Optional, Sequence, TypeVar, Union, overload
+import os
+from typing import (
+    Any,
+    Callable,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 
 import attrs
 
 from pelorus.config._class_setup import config
 from pelorus.config._common import NothingDict
-from pelorus.config.loading import _ENV_LOOKUPS, load_from_env
+from pelorus.config.loading import _ENV_LOOKUPS_KEY, load_from_env
 from pelorus.config.logging import _SHOULD_LOG, format_values
 
 from ._attrs_compat import NOTHING
@@ -215,7 +227,7 @@ def var(
 
     See also: `dataclasses.field`.
     """
-    metadata = NothingDict({_SHOULD_LOG: log, _ENV_LOOKUPS: env_lookups})
+    metadata = NothingDict({_SHOULD_LOG: log, _ENV_LOOKUPS_KEY: env_lookups})
 
     args = NothingDict(
         **field_args, metadata=metadata, default=default, factory=factory
@@ -224,4 +236,23 @@ def var(
     return attrs.field(**args)
 
 
-__all__ = ["load_from_env", "format_values", "var", "config"]
+ConfigClass = TypeVar("ConfigClass")
+
+
+def load_and_log(
+    cls: Type[ConfigClass],
+    other: dict[str, Any] = {},
+    *,
+    env: Mapping[str, str] = os.environ,
+) -> ConfigClass:
+    """
+    Load the config class from the environment, and log its configuration.
+    """
+    instance = load_from_env(cls, other, env=env)
+    # TODO: proper logging? Pass in a logging function (e.g. a partial `log.info` or something)
+    print(str(instance))
+
+    return instance
+
+
+__all__ = ["load_from_env", "format_values", "var", "config", "load_and_log"]

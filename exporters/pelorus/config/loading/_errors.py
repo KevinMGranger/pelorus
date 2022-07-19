@@ -8,6 +8,10 @@ from pelorus.config._common import _DEFAULT_KEYWORD
 
 
 class MissingDataError(Exception):
+    """
+    Parent error for any data missing during loading.
+    """
+
     pass
 
 

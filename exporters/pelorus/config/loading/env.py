@@ -1,12 +1,29 @@
-from typing import Any, Literal, Mapping, Optional, Sequence, Union
+from typing import (
+    Any,
+    Generic,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+)
 
-from attrs import Attribute
+import attrs
+from attrs import Attribute, fields
 
 from pelorus.config._attrs_compat import NOTHING
-from pelorus.config._common import _DEFAULT_KEYWORD
-from pelorus.config.loading._errors import MissingDefault, MissingOther, MissingVariable
+from pelorus.config._common import _DEFAULT_KEYWORD, NothingDict
+from pelorus.config.loading._errors import (
+    MissingConfigDataError,
+    MissingDataError,
+    MissingDefault,
+    MissingOther,
+    MissingVariable,
+)
 
-_ENV_LOOKUPS = "__pelorus_config_env_lookups"
+_ENV_LOOKUPS_KEY = "__pelorus_config_env_lookups"
 
 # TODO: the way we're doing it, "unset" and "DEFAULT" are treated the same if a default is set.
 # That's the way get_env_vars currently does it.
@@ -17,82 +34,115 @@ _ENV_LOOKUPS = "__pelorus_config_env_lookups"
 # We need to discuss that though, since that's not how `get_env_vars` works.
 
 
-def env_lookups(field: Attribute) -> Sequence[str]:
+def field_env_lookups(field: Attribute) -> Sequence[str]:
     """
     Gets the list of environment variable names to look up for this field.
     Will default to the field name in uppercase.  If disabled, will return an empty sequence.
     """
     field_name = field.name
 
-    if _ENV_LOOKUPS not in field.metadata:
+    if _ENV_LOOKUPS_KEY not in field.metadata:
         # default to the variable's name in uppercase.
         return [field_name.upper()]
 
-    env_lookups: Optional[Sequence[str]] = field.metadata[_ENV_LOOKUPS]
+    env_lookups: Optional[Sequence[str]] = field.metadata[_ENV_LOOKUPS_KEY]
 
     # if None or an empty sequence, env_lookups are not desired.
     return env_lookups if env_lookups is not None else tuple()
 
 
-class ValueFinder:
+ConfigClass = TypeVar("ConfigClass")
+
+
+@attrs.define
+class EnvironmentConfigLoader(Generic[ConfigClass]):
     """
-    A ValueFinder looks for the value described by `field` in the environment `env`.
+    Construct a config class (decorated with @config) using values from env vars.
+    Will also mark where the resulting value came from in `__value_sources` in the instance.
+
+    Not meant to be reused. Create a new ConfigLoader instance each time.
     """
 
-    def __init__(self, field: Attribute, env: Mapping[str, str]):
-        self.field = field
-        self.env = env
-        self.env_lookups = env_lookups(field)
+    cls: Type[ConfigClass]
+    other: dict[str, Any]
+    env: Mapping[str, str]
+    kwargs: NothingDict = attrs.field(init=False, factory=NothingDict)
+    missing: list[MissingDataError] = attrs.field(init=False, factory=list)
+    value_sources: NothingDict = attrs.field(init=False, factory=dict)
 
-    def all_matches(self):
+    def _all_matches(self, lookups: Sequence[str]):
         """
         Yield all name-value pairs that were present in the mapping.
         """
-        for name in self.env_lookups:
+        for name in lookups:
             if name in self.env:
                 yield (name, self.env[name])
 
-    # TODO: whether or not `other` gets passed here, whether or not it gets updated
-    # to actually makes the class... gotta be consistent, make it clean.
-    # It's nice that all error handling is here, y'know?
-    def find(self, other: dict[str, Any]) -> Union[Any, str, Literal[NOTHING]]:
+    def _load_field(
+        self, field: Attribute
+    ) -> tuple[Union[Any, Literal[NOTHING]], Union[Any, Literal[NOTHING]]]:
         """
-        Attempt to find the value given for this field.
-        If present or handled by other, return the value.
-        If missing (or set to default) but attrs will handle the default, return NOTHING.
+        Tries to load the value for the given field.
+        Returns a tuple of the value and the source of the value (for logging).
+        Either may be `NOTHING`:
+        the value if it's a default from the class definition,
+        or the source if it's passed in through `other`.
 
-        If missing (or set to default) but attrs _does not_ have a default, raise an error.
-        If set to ignore the environment but not present in env_lookups, raise an error.
+        Will raise an error if the value is not found but should be.
         """
-        # TODO: look at other first?
-        # or is that handled elsewhere?
-        # TODO: remove other, then.
-        env_lookups = self.env_lookups
+        name = field.name
+        env_lookups = field_env_lookups(field)
         if not env_lookups:
             # deliberately given an empty list or None,
             # meaning this should be provided through `other`.
-            if self.field.name in other:
-                return other[self.field.name]
+            if name in self.other:
+                return self.other[name], NOTHING
             else:
-                raise MissingOther(self.field.name)
+                raise MissingOther(name)
 
-        for env_name, env_value in self.all_matches():
+        for env_name, env_value in self._all_matches(env_lookups):
             if env_value == _DEFAULT_KEYWORD:
                 # make sure there is a default configured in the first place.
                 # otherwise this will fail when the class is set up.
-                if self.field.default is NOTHING:
-                    raise MissingDefault(self.field.name, env_name)
+                if field.default is NOTHING:
+                    raise MissingDefault(name, env_name)
                 # else attrs has a default, so we don't need to set it.
-                # Give NOTHING to the kwarg dict.
-                return NOTHING
+                # still mark that it came from the default.
+                return NOTHING, f"default value through {env_name} set to {env_value}"
             else:
-                return env_value
+                return env_value, f"env var {env_name}"
 
-        # nothing found in env, nothing found in other. If optional that's fine but otherwise...
-        if self.field.default is NOTHING:
-            raise MissingVariable(self.field.name, env_lookups)
+        # nothing found in env, nothing found in other. Only okay if it has a default.
+        if field.default is NOTHING:
+            raise MissingVariable(name, env_lookups)
         else:
-            return NOTHING
+            # make source message more helpful
+            if len(env_lookups) == 1:
+                return NOTHING, f"default value, {env_lookups[0]} was not set"
+            else:
+                return (
+                    NOTHING,
+                    "default value, none of " + ", ".join(env_lookups) + " were set",
+                )
+
+    def construct(self) -> ConfigClass:
+        """
+        Construct an instance of `cls` using the set environment and `other`.
+        """
+        for field in fields(self.cls):
+            name = field.name
+            try:
+                self.kwargs[name], self.value_sources[name] = self._load_field(field)
+            except MissingDataError as e:
+                self.missing.append(e)
+
+        if self.missing:
+            raise MissingConfigDataError(self.cls.__name__, self.missing)
+
+        instance = self.cls(**self.kwargs)
+        instance.__value_sources = self.value_sources  # type: ignore
+
+        return instance
 
 
-__all__ = ["env_lookups"]
+__all__ = ["field_env_lookups", "EnvironmentConfigLoader"]
