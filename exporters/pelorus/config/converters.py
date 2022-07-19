@@ -41,11 +41,8 @@ _TYPE_TO_DEFAULT_CONVERTER: list[tuple[Any, Optional[Callable]]] = [
     (list[str], comma_separated(list)),
     (set[str], comma_separated(set)),
     (tuple[str], comma_separated(tuple)),
-    # TODO: we should either standardize or require explicitness for
+    # FUTURE: we should either standardize or require explicitness for
     # whether or not an empty string is none or bool
-    # TODO: this is different behavior than strtobool!
-    # Is that a backwards incompatible change?
-    # bool: attrs.converters.to_bool,
 ]
 
 

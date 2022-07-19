@@ -1,16 +1,16 @@
 """
-Unified configuration management and parameter logging.
+Unified, declarative configuration management and logging.
 
-Configuration management needs to be consistent, and easy to get right.
+Configuration needs to be consistent, and easy to get right.
 Configuration should be logged in order to make debugging easier.
-However, it must be hard to accidentally log sensitive information (API credentials, etc.).
+However, accidentally logging sensitive information (API credentials, etc.) must be hard.
 
 This module handles the above goals by using `attrs`.
 
 # A Simple Example
 
 ```python
-from pelorus.config import config, load_from_env, var
+from pelorus.config import config, load_and_log, var
 
 @config
 class MyConfiguration:
@@ -19,22 +19,26 @@ class MyConfiguration:
     namespaces: list[str]
 ```
 
-Calling `load_from_env(MyConfiguration)` will perform the following:
+Calling `load_and_log(MyConfiguration)` will perform the following:
 
 1. Look for the environment variable `USERNAME`.
 2. Look for the environment variable `PASSWORD`.
 3. Look for the environment variable `NAMESPACES` and split at each comma, stripping all whitespace.
-3. Call `MyConfiguration(...)` with those values.
+4. Call `MyConfiguration(...)`:
   If `USERNAME` is missing, it will default to `GVR`.
   If `PASSWORD` is missing, a TypeError will be thrown.
   If `NAMESPACES` is present but empty, an empty list will be given.
 
-With that instance, calling `format_values(instance)` will yield an iterable,
-one element per field:
+It will then print `MyConfiguration` followed by each field's value.
+Sensitive values will be redacted.
+Each field will also list where the value came from.
 
-2. `username=GVR`
-3. `password=REDACTED`.
-  Any field name that contains any word in `REDACT_WORDS` will not be printed by default.
+For example:
+
+1. `username=GVR default value; USERNAME was not set)`
+2. `password=REDACTED (from env var PASSWORD)`.
+  (Any field name that contains any word in `REDACT_WORDS` will not be printed by default.)
+3. `namespaces=[''] (from env var NAMESPACES)`
 
 # Supported Variable Types
 
@@ -44,7 +48,9 @@ one element per field:
 | list[str] | split on `,` with whitespace stripped from each element |
 | set[str]  | same as above                                           |
 
-Other types may be supported with customization and converters:
+Optional versions of the above will always work, but the default must be set to `None`.
+
+Other types may be supported with customization and converters, shown in the next section.
 
 # Customization
 
@@ -56,9 +62,14 @@ class AdvancedConfiguration:
     anonymous_user: str = var(log=False)
     should_pass_tests: bool = var(log=True)
     whoami: str = var(env_lookups=["API_USER", "USER"])
+
+    api_client: Client = var(env_lookups=None)
+
     optional_name: str = var(default="someone")
     optional_list: list[str] = var(factory=list)
-    api_client: Client = var(env_lookups=None)
+
+    _private_field: Any = var(env_lookups=[])
+    public_but_ignore_me: Any = var(log=None)
 
 Notable differences:
 - anonymous_user will not be logged, when it otherwise would be.
@@ -66,9 +77,13 @@ Notable differences:
   We'd assume it's sensitive because it has "pass" in it, so we override that behavior.
 - whoami is set to the first value found of either `API_USER` or `USER`, instead of looking at `WHOAMI`.
 - optional_name and optional_list are optional.
+- optional_list uses `factory` because using an empty list in `default` would mean every instance sharing the same list!
+  This is known as the "python mutable default arg" issue.
+- _private_field and public_but_ignore_me will not be logged at all-- not even redacted.
 
-api_client is not looked for at all. You will need to pass it when using `load`:
-`load_from_env(AdvancedConfiguration, other=dict(api_client=client_instance))`
+api_client is not looked for at all. This is meant to handle objects that are more complex to set up.
+You will need to pass it when using `load`:
+`load_and_log(AdvancedConfiguration, other=dict(api_client=client_instance))`
 
 ## Converters
 
@@ -80,7 +95,7 @@ having each converter skip it if it's already correct.
 
 ```python
 from typing import Optional
-from pelorus.config import vars, config
+from pelorus.config import var, config
 from pelorus.config.converters import comma_separated
 from attrs.converters import default_if_none
 
@@ -135,7 +150,7 @@ See each individual function for details.
 See [DEVELOPING.md](./DEVELOPING.md) for details.
 """
 
-# TODO: this entire module would be cleaner if we had 3.10's `match`.
+# FUTURE: this entire module would be cleaner if we had 3.10's `match`.
 
 import os
 from typing import (
@@ -155,15 +170,11 @@ import attrs
 from pelorus.config._class_setup import config
 from pelorus.config._common import NothingDict
 from pelorus.config.loading import _ENV_LOOKUPS_KEY, load_from_env
-from pelorus.config.logging import _SHOULD_LOG, format_values
+from pelorus.config.logging import _SHOULD_LOG
 
 from ._attrs_compat import NOTHING
 
 FieldType = TypeVar("FieldType")
-
-# TODO: make converters first-class if we can?
-# That might really mess with the typing, which I don't want to do.
-# Is this something that 3.10 could do with typing.ParamSpec and typing.Concat ?
 
 
 @overload
@@ -210,22 +221,22 @@ def var(
     Customize a variable in a config class.
     See `load`'s documentation for the default behavior.
 
-    This is a convenience wrapper over `dataclasses.field`.
+    This is a convenience wrapper over `attrs.field`.
 
     `default` will be used if the variable is not found in the environment.
     Use `factory` if the default is mutable (e.g. a list).
 
     `log` manually controls if the field's value is logged, disregarding the automatic "redact" check.
-    If `None`, the field will not be logged entirely.
+    If `None`, the field will not be skipped entirely.
 
     `env_lookups` list the names to check in the environment for the variable's value, in order.
     If an empty list or None, the environment will not be checked, and the argument should be given
     in `load`'s `other` dict.
 
-    `other_field_args` are passed to `dataclasses.field`.
+    `other_field_args` are passed to `attrs.field`.
 
 
-    See also: `dataclasses.field`.
+    See also: `attrs.field`.
     """
     metadata = NothingDict({_SHOULD_LOG: log, _ENV_LOOKUPS_KEY: env_lookups})
 
@@ -255,4 +266,4 @@ def load_and_log(
     return instance
 
 
-__all__ = ["load_from_env", "format_values", "var", "config", "load_and_log"]
+__all__ = ["var", "config", "load_and_log"]

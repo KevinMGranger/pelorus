@@ -29,14 +29,6 @@ from pelorus.config.loading._errors import (
 
 _ENV_LOOKUPS_KEY = "__pelorus_config_env_lookups"
 
-# TODO: the way we're doing it, "unset" and "DEFAULT" are treated the same if a default is set.
-# That's the way get_env_vars currently does it.
-# But are we taking away the option to have `Optional[str]`?
-# We don't support that right now anyway, but is there a use case for that?
-# I'll argue no, since it's impossible to unset a var already set in openshift.
-# TODO: now, counting an empty as unset: yes. that's worth doing Optional for.
-# We need to discuss that though, since that's not how `get_env_vars` works.
-
 
 def field_env_lookups(field: Attribute) -> Sequence[str]:
     """

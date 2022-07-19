@@ -86,6 +86,8 @@ def _hook(cls: type, fields: list[attrs.Attribute]) -> list[attrs.Attribute]:
     ]
 
 
-_CONFIG_KWARGS = dict(field_transformer=_hook, str=False, auto_attribs=True)
+_CONFIG_KWARGS = dict(
+    field_transformer=_hook, str=False, auto_attribs=True, kw_only=True
+)
 
 config = partial(attrs.define, **_CONFIG_KWARGS)

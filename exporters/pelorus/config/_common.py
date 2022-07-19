@@ -2,7 +2,8 @@
 Tools used by multiple modules within the config module.
 
 1. The pelorus default keyword is put in one easy-to-find place.
-2. A customized dict that makes working with attrs's NOTHING easier,
+2. The name of the attribute used to track variable sources.
+3. A customized dict that makes working with attrs's NOTHING easier,
   by treating it a bit more like javascript's `undefined`: it represents absence.
 """
 import os

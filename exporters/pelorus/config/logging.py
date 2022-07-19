@@ -25,13 +25,14 @@ def _should_be_logged(f: Attribute) -> Optional[bool]:
 
     if log is NOTHING:
         is_private = f.name.startswith("_")
-        should_be_redacted = any(word in f.name.lower() for word in REDACT_WORDS)
         if is_private:
             return None
-        elif should_be_redacted:
+
+        should_be_redacted = any(word in f.name.lower() for word in REDACT_WORDS)
+        if should_be_redacted:
             return False
-        else:
-            return True
+
+        return True
     elif log is None:
         return None
     else:
@@ -40,8 +41,8 @@ def _should_be_logged(f: Attribute) -> Optional[bool]:
 
 def format_values(obj: object):
     """
-    Yields each field formatted as name=value,
-    redacting the value for sensitive fields.
+    Yields each field formatted as name=value, redacting the value for sensitive fields.
+    Will skip fields that are private.
     """
     value_sources: Mapping[str, str] = getattr(
         obj, _PELORUS_CONFIG_VALUE_SOURCES, dict()
