@@ -2,12 +2,13 @@
 Config class setup functions.
 """
 from functools import partial
-from typing import Optional
+from typing import Mapping, Optional
 
 import attrs
 import attrs.converters
 from attrs import Attribute
 
+from pelorus.config._common import _PELORUS_CONFIG_VALUE_SOURCES
 from pelorus.config.loading.env import field_env_lookups
 from pelorus.config.logging import format_values
 
@@ -65,11 +66,24 @@ def _hook(cls: type, fields: list[attrs.Attribute]) -> list[attrs.Attribute]:
 
     1. Creates __str__ (if not defined by the user), protecting sensitive info.
     2. Sets up default converters.
+    3. Makes space for the value_sources dict.
     """
     if not _str_method_is_user_defined(cls):
         cls.__str__ = __str__  # type: ignore
 
-    return [_set_up_converter(field) for field in fields]
+    return [_set_up_converter(field) for field in fields] + [
+        attrs.Attribute(
+            name=_PELORUS_CONFIG_VALUE_SOURCES,
+            default=attrs.Factory(dict),
+            init=False,
+            type=Mapping[str, str],
+            validator=None,
+            repr=False,
+            cmp=False,
+            hash=False,
+            inherited=False,
+        )  # type: ignore
+    ]
 
 
 _CONFIG_KWARGS = dict(field_transformer=_hook, str=False, auto_attribs=True)

@@ -14,7 +14,11 @@ import attrs
 from attrs import Attribute, fields
 
 from pelorus.config._attrs_compat import NOTHING
-from pelorus.config._common import _DEFAULT_KEYWORD, NothingDict
+from pelorus.config._common import (
+    _DEFAULT_KEYWORD,
+    _PELORUS_CONFIG_VALUE_SOURCES,
+    NothingDict,
+)
 from pelorus.config.loading._errors import (
     MissingConfigDataError,
     MissingDataError,
@@ -68,7 +72,7 @@ class EnvironmentConfigLoader(Generic[ConfigClass]):
     env: Mapping[str, str]
     kwargs: NothingDict = attrs.field(init=False, factory=NothingDict)
     missing: list[MissingDataError] = attrs.field(init=False, factory=list)
-    value_sources: NothingDict = attrs.field(init=False, factory=dict)
+    value_sources: NothingDict = attrs.field(init=False, factory=NothingDict)
 
     def _all_matches(self, lookups: Sequence[str]):
         """
@@ -108,9 +112,9 @@ class EnvironmentConfigLoader(Generic[ConfigClass]):
                     raise MissingDefault(name, env_name)
                 # else attrs has a default, so we don't need to set it.
                 # still mark that it came from the default.
-                return NOTHING, f"default value through {env_name} set to {env_value}"
+                return NOTHING, f"default value ({env_name} set to {env_value})"
             else:
-                return env_value, f"env var {env_name}"
+                return env_value, f"from env var {env_name}"
 
         # nothing found in env, nothing found in other. Only okay if it has a default.
         if field.default is NOTHING:
@@ -118,11 +122,11 @@ class EnvironmentConfigLoader(Generic[ConfigClass]):
         else:
             # make source message more helpful
             if len(env_lookups) == 1:
-                return NOTHING, f"default value, {env_lookups[0]} was not set"
+                return NOTHING, f"default value; {env_lookups[0]} was not set"
             else:
                 return (
                     NOTHING,
-                    "default value, none of " + ", ".join(env_lookups) + " were set",
+                    "default value; none of " + ", ".join(env_lookups) + " were set",
                 )
 
     def construct(self) -> ConfigClass:
@@ -140,7 +144,7 @@ class EnvironmentConfigLoader(Generic[ConfigClass]):
             raise MissingConfigDataError(self.cls.__name__, self.missing)
 
         instance = self.cls(**self.kwargs)
-        instance.__value_sources = self.value_sources  # type: ignore
+        setattr(instance, _PELORUS_CONFIG_VALUE_SOURCES, self.value_sources)  # type: ignore
 
         return instance
 

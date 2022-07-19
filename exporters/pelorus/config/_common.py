@@ -17,6 +17,8 @@ _DEFAULT_KEYWORD = (
     os.getenv("PELORUS_DEFAULT_KEYWORD") or pelorus.utils.DEFAULT_VAR_KEYWORD
 )
 
+_PELORUS_CONFIG_VALUE_SOURCES = "_pelorus_config_value_sources"
+
 K = TypeVar("K")
 V = TypeVar("V")
 
@@ -81,4 +83,4 @@ class NothingDict(UserDict, MutableMapping[K, V]):
                 return v
 
 
-__all__ = ["NothingDict"]
+__all__ = ["NothingDict", "_PELORUS_CONFIG_VALUE_SOURCES"]

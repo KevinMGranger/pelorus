@@ -143,7 +143,6 @@ from typing import (
     Callable,
     Literal,
     Mapping,
-    Optional,
     Sequence,
     Type,
     TypeVar,
@@ -171,7 +170,7 @@ FieldType = TypeVar("FieldType")
 def var(
     *,
     default: FieldType,
-    log: Optional[bool] = None,
+    log: Union[bool, None, Literal[NOTHING]] = NOTHING,
     env_lookups: Union[Sequence[str], None, Literal[NOTHING]] = NOTHING,
     field_args: dict[str, Any] = {},
 ) -> FieldType:
@@ -182,7 +181,7 @@ def var(
 def var(
     *,
     factory: Callable[[], FieldType],
-    log: Optional[bool] = None,
+    log: Union[bool, None, Literal[NOTHING]] = NOTHING,
     env_lookups: Union[Sequence[str], None, Literal[NOTHING]] = NOTHING,
     field_args: dict[str, Any] = {},
 ) -> FieldType:
@@ -192,7 +191,7 @@ def var(
 @overload
 def var(
     *,
-    log: Optional[bool] = None,
+    log: Union[bool, None, Literal[NOTHING]] = NOTHING,
     env_lookups: Union[Sequence[str], None, Literal[NOTHING]] = NOTHING,
     field_args: dict[str, Any] = {},
 ) -> Any:
@@ -203,7 +202,7 @@ def var(
     *,
     default: Any = NOTHING,
     factory: Any = NOTHING,
-    log: Optional[bool] = None,
+    log: Union[bool, None, Literal[NOTHING]] = NOTHING,
     env_lookups: Union[Sequence[str], None, Literal[NOTHING]] = NOTHING,
     field_args: dict[str, Any] = {},
 ):
@@ -216,7 +215,8 @@ def var(
     `default` will be used if the variable is not found in the environment.
     Use `factory` if the default is mutable (e.g. a list).
 
-    `log` manually controls if the field is logged, disregarding the automatic "redact" check.
+    `log` manually controls if the field's value is logged, disregarding the automatic "redact" check.
+    If `None`, the field will not be logged entirely.
 
     `env_lookups` list the names to check in the environment for the variable's value, in order.
     If an empty list or None, the environment will not be checked, and the argument should be given
