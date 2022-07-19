@@ -98,13 +98,18 @@ def test_logging():
         _private_but_redact_me: str = var(default="REDACT ME 3", log=False)
         not_private_but_skip_logging: str = var(default="SHOULD BE ABSENT 2", log=None)
 
-    # TODO: test for provenance
+        from_multi_env: str = var(
+            default="", env_lookups=["MULTI_ENV", "FROM_MULTI_ENV"]
+        )
+        default_name: str = var(default="LOG ME 4")
 
-    instance = load_from_env(Loggable, env=dict())
+    instance = load_from_env(Loggable, env=dict(DEFAULT_NAME="default"))
 
     logged = str(instance)
 
+    print(logged)
+
     assert "REDACT ME" not in logged
     assert "SHOULD BE ABSENT" not in logged
-    for i in range(1, 4):
+    for i in range(1, 5):
         assert f"LOG ME {i}" in logged

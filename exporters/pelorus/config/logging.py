@@ -53,11 +53,13 @@ def format_values(obj: object):
             continue
         elif should_be_logged:
             value = getattr(obj, f.name)
+            if isinstance(value, str):
+                value = repr(value)
         else:
             value = "REDACTED"
 
         if f.name in value_sources:
-            source = f"({value_sources[f.name]})"
+            source = f"\t({value_sources[f.name]})"
         else:
             source = ""
         yield f"{f.name}={value}{source}"
