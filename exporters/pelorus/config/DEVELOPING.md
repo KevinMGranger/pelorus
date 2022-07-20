@@ -1,4 +1,9 @@
-# How does this work?
+# What is `pelorus.config`?
+A declarative way to load configuration from environment variables, and log that configuration properly.
+
+See [the module docs](./__init__.py) for more details.
+
+# How does it work?
 
 `attrs` lets you declaratively create python classes with minimal boilerplate.
 This concept was so popular a similar tool was added to python in the `dataclasses` module.

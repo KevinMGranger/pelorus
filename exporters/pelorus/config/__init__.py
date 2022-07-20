@@ -1,5 +1,5 @@
 """
-Unified, declarative configuration management and logging.
+A declarative way to load configuration from environment variables, and log that configuration properly.
 
 Configuration needs to be consistent, and easy to get right.
 Configuration should be logged in order to make debugging easier.
@@ -61,7 +61,7 @@ You can customize each field with `var`:
 class AdvancedConfiguration:
     anonymous_user: str = var(log=False)
     should_pass_tests: bool = var(log=True)
-    whoami: str = var(env_lookups=["API_USER", "USER"])
+    whoami: str = var(env_lookups=["API_USER", "GIT_USER"])
 
     api_client: Client = var(env_lookups=None)
 
@@ -75,7 +75,7 @@ Notable differences:
 - anonymous_user will not be logged, when it otherwise would be.
 - should_pass_tests _will_ be logged.
   We'd assume it's sensitive because it has "pass" in it, so we override that behavior.
-- whoami is set to the first value found of either `API_USER` or `USER`, instead of looking at `WHOAMI`.
+- whoami is set to the first value found of either `API_USER` or `GIT_USER`, instead of looking at `WHOAMI`.
 - optional_name and optional_list are optional.
 - optional_list uses `factory` because using an empty list in `default` would mean every instance sharing the same list!
   This is known as the "python mutable default arg" issue.
