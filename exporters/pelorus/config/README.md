@@ -181,11 +181,51 @@ _ = load_and_log(UsesOpenshift, other=dict(client=SOME_CLIENT_HERE))
 Fields meant to be provided through `other` are not logged.
 You can override this behavior.
 
+## Customizing Init
+
+Although `attrs` will generate an `__init__` for the class,
+sometimes you need to deviate from this behavior.
+Maybe you have a field that you need to create based on two other fields?
+Or something to log after being set up?
+Or need to validate the whole thing, not just a field or two?
+
+See [attrs's docs on hooking into init](https://www.attrs.org/en/stable/init.html#hooking-yourself-into-initialization)
+to learn how.
+
+As a simple example:
+
+```python
+from attrs import define, field
+from requests import Session
+
+@define
+class RequestsUser:
+    api_user: str
+    token: str
+
+    _session: Session = field(factory=Session, init=False)
+
+    def __attrs_post_init__(self):
+        self._session.auth = (self.api_user, self.api_token)
+```
+
+Note that we still declare the field. This is nice for type checking tools,
+but is also necessary because attrs uses `__slots__` unless told not to
+in `define`'s arguments.
+
+## Other attrs features
+
+See the [`attrs` docs](https://www.attrs.org/en/stable/overview.html) to learn more
+about its other features, including:
+- validators
+- frozen instances (a good idea!)
+
 # Reference
 
 See the pydoc for each item for more details.
 
 You can also see the [unit test](../../tests/test_config.py) for more examples.
+
 # Development
 
 See [DEVELOPING.md](./DEVELOPING.md) for details.

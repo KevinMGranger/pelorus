@@ -55,3 +55,23 @@ As for why it's re-exported in its own file, that's so typing tools such as mypy
 can use it in a type signature, making sure the NOTHING case is handled.
 
 This will be unnecessary if [the PR changing the typing](https://github.com/python-attrs/attrs/pull/983) is merged.
+
+# Why are there so many type annotations? What are `.pyi` files?
+
+mypy and pyright tools will type check python code.
+They can catch _so many_ errors that would otherwise happen at runtime,
+and provide even more helpful code completion / inline documentation support.
+There's a reason why Guido Van Rossum is working so heavily on mypy!
+
+`.pyi` files are "type stubs": they are checked for type information by typing tools,
+but ignored at runtime.
+
+We only use them for two things.
+
+First, to use `NOTHING` as its own type (see above).
+
+Secondly, for `attrs.Factory`.
+Because a class's fields are marked as their runtime type (e.g. `str`, `bool`),
+but `field` returns an `attrs.Attribute`, their type stubs have to lie about the
+return value of both `field` and `attrs.Factory` to keep the type checker happy.
+We undo that.
