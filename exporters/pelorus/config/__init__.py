@@ -7,7 +7,7 @@ See [DEVELOPING](./DEVELOPING.md) for implementation details / dev docs.
 
 import logging
 import os
-from typing import Any, Generic, Mapping, Type, TypeVar
+from typing import Any, Generic, Mapping, Optional, Type, TypeVar
 
 import attrs
 
@@ -20,6 +20,7 @@ from pelorus.config.loading import (
     no_env_vars,
 )
 from pelorus.config.log import LOG, REDACT, SKIP, Log, log
+from pelorus.utils import DEFAULT_VAR_KEYWORD
 
 
 def _prepare_kwargs(results: dict[str, Any]):
@@ -122,15 +123,32 @@ def load_and_log(
     other: dict[str, Any] = {},
     *,
     env: Mapping[str, str] = os.environ,
-    default_keyword: str = "default",
+    default_keyword: Optional[str] = None,
     logger: logging.Logger = logging.getLogger(__name__),
 ) -> ConfigClass:
     """
-    Load values for the given class from the environment (overridden by `other`),
+    Load values for the given class from the environment,
     logging their values and reporting errors, before instantiating the class.
+
+    `other` is used for variables that can't be loaded from the environment,
+    or to override the environment and skip checking it for their values.
+    The names in `other` are the _field name_, not the env var name.
+
+    env defaults to os.environ, and can be overridden for testing.
+
+    default_keyword may be overridden. If the default of `None`,
+    the env var of `PELORUS_DEFAULT_KEYWORD` is used, falling back to "default".
+    This is looked up from `env`, not necessarily os.environ.
+
+    logger defaults to the logger for `pelorus.config`, but may be overridden.
     """
+    if default_keyword is None:
+        default = env.get("PELORUS_DEFAULT_KEYWORD", DEFAULT_VAR_KEYWORD)
+    else:
+        default = default_keyword
+
     loader = _LoggingLoader(
-        cls, other=other, env=env, default_keyword=default_keyword, logger=logger
+        cls, other=other, env=env, default_keyword=default, logger=logger
     )
     return loader.load_and_log()
 
