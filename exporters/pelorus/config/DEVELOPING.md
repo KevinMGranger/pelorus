@@ -1,7 +1,8 @@
 # What is `pelorus.config`?
+
 A declarative way to load configuration from environment variables, and log that configuration properly.
 
-See [the module docs](./__init__.py) for more details.
+See [the README](./README.md) for more details.
 
 # How does it work?
 
@@ -16,7 +17,7 @@ and know how to convert the type in a consistent way.
 
 Knowing the name also makes it possible to guess what should be logged and what shouldn't be (credentials, etc).
 
-Since you can pass metadata per-field, you can configure the above behaviors.
+Since you can pass metadata per field, you can configure the above behaviors.
 
 # Why attrs instead of dataclasses?
 
