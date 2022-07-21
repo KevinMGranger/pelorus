@@ -8,139 +8,184 @@ However, accidentally logging sensitive information (API credentials, etc.) must
 
 This module handles the above goals by using `attrs`.
 
-# Motivation
+# Background
 
-# Tutorial
+When it comes to exporter configuration and startup, we've experienced the following issues:
+- It's always been ad-hoc and repetitious.
+- As env vars evolve, we had to keep reassigning old ones for backwards compatibility.
+- Configuration was not abstracted away from its source--
+  changing to a config file instead of env vars would take a lot of work.
+- Converting from strings to things such as lists was error-prone.
+- Logging wasn't always done, leading to tons of time lost debugging.
 
-# Reference
+# Tutorial: Basic Usage
 
-# A Simple Example
+```python
+from pelorus.config import load_and_log
+
+config = load_and_log(ConfigClass)
+```
+
+`load_and_log` inspects a class set up by `attrs`,
+loading values from the environment, and logging what was found.
+
+It uses some common-sense defaults:
+- an attribute's name in uppercase is the environment variable's name.
+- attributes whose name contains something implying sensitive information
+  (e.g. credentials end up in a variable called `token`) have their values redacted.
+- private fields (starting with any number of underscores) are not logged at all.
+
+What does `ConfigClass` look like?
 
 ```python
 from attrs import define
 
 @define(kw_only=True)
-class MyConfiguration:
+class ConfigClass:
     username: str = "GVR"
     password: str
 ```
 
-Calling `load_and_log(MyConfiguration)` will perform the following:
+`load_and_log` will do the following:
 
-1. Look for the environment variable `USERNAME`.
+1. Look for the environment variable `USERNAME`. If missing, it will be set to `GVR`.
 2. Look for the environment variable `PASSWORD`.
-<!-- 3. Look for the environment variable `NAMESPACES` and split at each comma, stripping all whitespace. -->
+3. Log the config class's name, the values obtained, and where the values came from:
+  1. `username=GVR, default value; USERNAME was not set`
+  2. `password=REDACTED, from env var PASSWORD`
 4. Call `MyConfiguration(...)`:
   If `USERNAME` is missing, it will default to `GVR`.
   If `PASSWORD` is missing, a MissingConfigDataError will be thrown.
-  <!-- If `NAMESPACES` is present but empty, an empty list will be given. -->
 
-It will then print `MyConfiguration` followed by each field's value.
-Sensitive values will be redacted.
-Each field will also list where the value came from.
+`kw_only=True` is requires so we can have a mandatory field after one with a default.
+We recommend its use even if that doesn't apply to you.
 
-For example:
 
-1. `username=GVR, default value; USERNAME was not set`
-2. `password=REDACTED, from env var PASSWORD`
-  (Any field name that contains any word in `REDACT_WORDS` will not be printed by default.)
-<!-- 3. `namespaces=[''] (from env var NAMESPACES)` -->
+# Tutorial: Advanced Usage
 
-# Customization
+What if you need to:
+- [Use a different environment variable name? Or check multiple env vars, for backwards compatibility?](#environment-variables)
+- [Skip or recact a field that wouldn't normally be? Or the opposite?](#logging)
+- [Use a datatype that isn't a string? Have a default for that when it's mutable?](#converters)
+- [Use a value that isn't easily loaded from the environment?](#the-other-dict)
 
-Attrs allows you to modify how attributes are treated. We will focus on three important ab
+## Metadata
 
-You may need to deviate from the default behavior, or pass an argument that won't come from the environment.
-You can customize each field with `var`:
+`attrs` lets you attach metadata to any field with just a simple dictionary.
 
-@config
-class AdvancedConfiguration:
-    anonymous_user: str = var(log=False)
-    should_pass_tests: bool = var(log=True)
-    whoami: str = var(env_lookups=["API_USER", "GIT_USER"])
+We expose helpers for customizing log and environent variable lookup .
 
-    api_client: Client = var(env_lookups=None)
+### Environment Variables
 
-    optional_name: str = var(default="someone")
-    optional_list: list[str] = var(factory=list)
+```python
+from attrs import define, field
+from pelorus.config import env_vars
 
-    _private_field: Any = var(env_lookups=[])
-    public_but_ignore_me: Any = var(log=None)
+@define(kw_only=True)
+class EnvVarExample:
+    different_variable_name: str = field(default="foo", metadata=env_vars("DIFF_VAR"))
+    fallback_var_names: str = field(metadata=env_vars("NEW_VAR", "LEGACY_VAR"))
+```
 
-Notable differences:
-- anonymous_user will not be logged, when it otherwise would be.
-- should_pass_tests _will_ be logged.
-  We'd assume it's sensitive because it has "pass" in it, so we override that behavior.
-- whoami is set to the first value found of either `API_USER` or `GIT_USER`, instead of looking at `WHOAMI`.
-- optional_name and optional_list are optional.
-- optional_list uses `factory` because using an empty list in `default` would mean every instance sharing the same list!
-  This is known as the "python mutable default arg" issue.
-- _private_field and public_but_ignore_me will not be logged at all-- not even redacted.
+Loading this will check `DIFF_VAR` for the first field, instead of `DIFFERENT_VARIABLE_NAME`. It still has a default.
 
-api_client is not looked for at all. This is meant to handle objects that are more complex to set up.
-You will need to pass it when using `load`:
-`load_and_log(AdvancedConfiguration, other=dict(api_client=client_instance))`
+`fallback_var_names` will be set to whatever the earliest set env var is from the listed ones. e.g. if both are set, the value from `NEW_VAR` will be used.
+If neither are set, an error will be logged and thrown.
+
+### Logging
+
+```python
+from attrs import define, field
+from pelorus.config import log, LOG, SKIP, REDACT
+
+@define(kw_only=True)
+class LogExample:
+    test_to_pass: str = field(metadata=log(LOG))
+    _dont_skip_me: str = field(metadata=log(LOG))
+    i_am_sensitive: str = field(metadata=log(REDACT))
+    do_skip_me: str = field(metadata=log(SKIP))
+```
+
+The value of `test_to_pass` would normally be redacted, because `pass` is in the field name. With the log metadata, that behavior is overridden.
+`_dont_skip_me` would normally not appear in the logs at all because it is "private", but that is overridden.
+`i_am_sensitive` _would_ normally appear in the logs, because there's no member of `REDACT_WORDS` in it. We have forced it to be redacted.
+`do_skip_me` has been manually set to not appear in the logs at all.
+
+
+### Combining metadata
+
+What if you need to customize logging and env var metadata?
+The metadata helpers expose metadata as a dict for convenience--
+this means you can combine them with the dict union operator `|`.
+
+```python
+from attrs import define, field
+from pelorus.config import log, REDACT, env_vars
+@define
+class CombinedClass:
+    foo: str = field(metadata=log(REDACT) | env_vars("BAR"))
+```
 
 ## Converters
 
-`var` wraps `attrs.field`. You can support fancier type transformations using converters.
-Attrs even allows them to be composed.
+`attrs` lets incoming values be automatically converted.
+Since we load from environment variables, conversion is
+necessary if the desired value's type is not a string!
 
-You should consider supporting passing in an object of the target type,
-having each converter skip it if it's already correct.
+We offer a helper for the common case, where a collection
+takes a comma separated list of (whitespace-stripped) strings:
 
 ```python
-from typing import Optional
-from pelorus.config import var, config
+from attrs import define, field
+from attrs.converters import to_bool
 from pelorus.config.converters import comma_separated
-from attrs.converters import default_if_none
 
-def treat_empty_str_as_none(value: Optional[str]) -> Optional[str]:
-    if value is None or value == "":
-        return None
-    else:
-        return value
-
-
-@config
-class FancyConfig:
-    not_quite_a_list: SomeCollection[str] = var(field_args=dict(
-            converters=comma_separated(SomeCollection)
-            ))
-
-    required_int_with_empty_as_zero: int = var(field_args=dict(
-            converters=[treat_empty_str_as_none, default_if_none(default=0), int]
-    ))
+@define
+class GiveMeCollections:
+    namespaces: set[str] = field(factory=set, converter=comma_separated(set))
+    foo: list[str] = field(factory=list, converter=comma_separated(list))
+    tls_verify: bool = field(default="yes", converter=to_bool)
 ```
 
-The env vars:
-NOT_QUITE_A_LIST="foo,bar"
-REQUIRED_INT_WITH_EMPTY_AS_ZERO="3"
+Note that we use `factory` instead of `default` for the collections.
+This is because of python's "mutable defaults" gotcha:
+if we set `default` to `[]`, _every instance of the class would use the same list!_
 
-Will result in the equivalent of:
+Also note how `tls_verify` uses a string default.
+Even defaults go through converters.
+Well-behaved converters will handle when their inputs are the same desired type,
+and pass them through as-is. This is true for both to_bool and comma_separated,
+so we could have written `default=True` if we wanted to.
+
+`attrs` has some more converters defined, and even ways to compose them.
+See their docs for details.
+
+## The `other` dict
+
+What if you have some data type that couldn't be loaded from the environment
+(in our most common case, an openshift client)?
+
+That can be passed in with `load_and_log`'s `other` dict.
+
 ```python
-FancyConfig(
-    not_quite_a_list=SomeCollection("foo", "bar"),
-    required_int_with_empty_as_zero=4
-    )
+from attrs import define, field
+from pelorus.config import no_env_vars
+
+@define
+class UsesOpenshift:
+    client: object = field(metadata=no_env_vars())
+
+_ = load_and_log(UsesOpenshift, other=dict(client=SOME_CLIENT_HERE))
 ```
 
-While the env vars:
-NOT_QUITE_A_LIST=""
-REQUIRED_INT_WITH_EMPTY_AS_ZERO=""
+Fields meant to be provided through `other` are not logged.
+You can override this behavior.
 
-Will result in the equivalent of:
-```python
-FancyConfig(
-    not_quite_a_list=SomeCollection(),
-    required_int_with_empty_as_zero=0
-    )
-```
+# Reference
 
-# Details
+See the pydoc for each item for more details.
 
-See each individual function for details.
-
+You can also see the [unit test](../../tests/test_config.py) for more examples.
 # Development
 
 See [DEVELOPING.md](./DEVELOPING.md) for details.
