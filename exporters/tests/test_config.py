@@ -2,8 +2,10 @@ from typing import Optional
 
 from attrs import define, field
 
+from pelorus.config import load_and_log
 from pelorus.config.converters import comma_separated
-from pelorus.config.next import Log, env_vars, load_and_log, log, no_env_vars
+from pelorus.config.loading import env_vars, no_env_vars
+from pelorus.config.logging import LOG, Log, log
 
 
 def test_loading_simple_string():
@@ -83,7 +85,7 @@ def test_loading_from_other():
 
 
 def test_logging(capsys):
-    @define
+    @define(kw_only=True)
     class Loggable:
         regular_field: str = field(default="LOG ME 1")
 
@@ -111,12 +113,22 @@ def test_logging(capsys):
         )
         default_name: str = field(default="LOG ME 4")
 
-    load_and_log(Loggable, env=dict(DEFAULT_NAME="default"))
+        other_not_logged: str = field(metadata=no_env_vars())
+        other_explicitly_logged: str = field(metadata=no_env_vars() | log(LOG))
+
+    load_and_log(
+        Loggable,
+        env=dict(DEFAULT_NAME="default"),
+        other=dict(
+            other_not_logged="SHOULD BE ABSENT 3", other_explicitly_logged="LOG ME 5"
+        ),
+    )
 
     output = capsys.readouterr()
     logged = output.out
+    print(logged)
 
     assert "REDACT ME" not in logged
     assert "SHOULD BE ABSENT" not in logged
-    for i in range(1, 5):
+    for i in range(1, 6):
         assert f"LOG ME {i}" in logged

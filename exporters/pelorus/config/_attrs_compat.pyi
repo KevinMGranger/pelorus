@@ -12,8 +12,8 @@ DefaultType = TypeVar("DefaultType")
 class Factory(Generic[DefaultType]):
     def __init__(
         self,
-        factory: Union[Callable[[object], DefaultType], Callable[[], DefaultType]],
+        factory: Callable[[], DefaultType],
         takes_self=False,
     ): ...
-    factory: Union[Callable[[object], DefaultType], Callable[[], DefaultType]]
+    factory: Callable[[], DefaultType]
     takes_self: bool
