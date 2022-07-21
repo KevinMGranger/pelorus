@@ -17,29 +17,21 @@
 
 import enum
 import os
-from typing import (
-    Any,
-    Literal,
-    Mapping,
-    NamedTuple,
-    Protocol,
-    Sequence,
-    Type,
-    TypeVar,
-    Union,
-    overload,
-    Optional,
-)
+from typing import Any, Literal, Mapping, Optional, Type, TypeVar, Union
+
 import attrs
-from attrs import Attribute, frozen, define
+from attrs import Attribute, define, frozen
+
 from ._attrs_compat import NOTHING, Factory
-from .loading.env import _ENV_LOOKUPS_KEY
 from .loading._errors import (
+    MissingConfigDataError,
     MissingDataError,
-    MissingVariable,
     MissingDefault,
     MissingOther,
+    MissingVariable,
 )
+
+_ENV_LOOKUPS_KEY = "__pelorus_config_env_vars"
 
 _SHOULD_LOG = "__pelorus_config_log"
 
@@ -180,7 +172,7 @@ class EnvFinder:
         if value == self.default_keyword:
             value = self._get_default()
             if value is NOTHING:
-                return MissingDefault(self.name, env_name)
+                return MissingDefault(self.name, env_name, self.default_keyword)
             else:
                 return DefaultSetEnvVar(env_name, value, self.default_keyword)
 
@@ -194,13 +186,24 @@ class EnvFinder:
         if _ENV_LOOKUPS_KEY in field.metadata:
             env_lookups = field.metadata[_ENV_LOOKUPS_KEY]
         else:
-            env_lookups = tuple(field.name.upper())
+            env_lookups = (field.name.upper(),)
 
         if not env_lookups:
             # deliberately don't check. needs to be in other
             return NOTHING
 
         return cls(field, env, env_lookups, default_keyword)._value_or_default()
+
+
+def _prepare_kwargs(results: dict[str, Any]):
+    "remove underscores for attrs init, unpack value from env var container"
+    for k, v in results.items():
+        if isinstance(v, EnvVarWithSource):
+            value = v.value
+        else:
+            value = v
+
+        yield k.lstrip("_"), value
 
 
 ConfigClass = TypeVar("ConfigClass")
@@ -212,9 +215,9 @@ def load_and_log(
     *,
     env: Mapping[str, str] = os.environ,
     default_keyword: str = "default",
-) -> Optional[ConfigClass]:
+) -> ConfigClass:
     results: dict[str, Any] = dict()
-    any_errors = False
+    errors = []
     for field in attrs.fields(cls):
         name = field.name
 
@@ -230,12 +233,12 @@ def load_and_log(
                 results[name] = other[name]
         elif isinstance(value, MissingDataError):
             results[name] = value
-            any_errors = True
+            errors.append(value)
         else:
             value.log = _should_log(field)
             results[name] = value
 
-    if any_errors:
+    if errors:
         print(
             f"While loading config {cls.__name__}, errors were encountered. All values:"
         )
@@ -258,9 +261,9 @@ def load_and_log(
         else:  # came from other, skip logging.
             pass
 
-    if any_errors:
-        return None
+    if errors:
+        raise MissingConfigDataError(cls.__name__, errors)
 
-    kwargs = dict((k, v.value) for k, v in results.items())
+    kwargs = dict(_prepare_kwargs(results))
 
     return cls(**kwargs)

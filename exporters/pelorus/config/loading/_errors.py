@@ -4,8 +4,6 @@ Environment loading errors, meant to be detailed and used in aggregate.
 from dataclasses import dataclass
 from typing import Collection, Sequence
 
-from pelorus.config._common import _DEFAULT_KEYWORD
-
 
 class MissingDataError(Exception):
     """
@@ -41,10 +39,11 @@ class MissingDefault(MissingDataError):
 
     name: str
     var_containing_default: str
+    default_keyword: str
 
     def __str__(self):
         return (
-            f"{self.name} was set to {_DEFAULT_KEYWORD} "
+            f"{self.name} was set to {self.default_keyword} "
             f"in env var {self.var_containing_default} but there was no default set"
         )
 

@@ -1,10 +1,9 @@
 from typing import Optional
 
-from attrs import field, define
+from attrs import define, field
 
-from pelorus.config import config as pelorus_config
-from pelorus.config.next import Log, env_vars, no_env_vars, log, load_and_log
-import pytest
+from pelorus.config.converters import comma_separated
+from pelorus.config.next import Log, env_vars, load_and_log, log, no_env_vars
 
 
 def test_loading_simple_string():
@@ -16,7 +15,6 @@ def test_loading_simple_string():
     env = dict(UNANNOTATED="unannotated", WITH_VAR="with_var", FIELD_WORKS="field")
 
     loaded = load_and_log(SimpleCase, env=env)
-    assert loaded is not None
 
     assert loaded.unannotated == env["UNANNOTATED"]
     assert loaded.with_var == env["WITH_VAR"]
@@ -31,8 +29,6 @@ def test_default():
 
     loaded = load_and_log(Default, env=dict())
 
-    assert loaded is not None
-
     assert loaded.foo == "foo"
     assert loaded.bar == "default from literal"
     assert loaded.baz is None
@@ -41,25 +37,22 @@ def test_default():
 def test_fallback_lookups():
     @define
     class Fallback:
-        # foo: str = field(metadata=dict(env_lookups="FOO BAR BAZ".split()))
         foo: str = field(metadata=env_vars("FOO", "BAR", "BAZ"))
 
     env = dict(BAR="bar", BAZ="baz")
 
     loaded = load_and_log(Fallback, env=env)
-    assert loaded is not None
 
     assert loaded.foo == env["BAR"]
 
 
-@pytest.mark.skip("redoing collections")
 def test_load_collections():
     @define
     class Collections:
-        a_set: set[str]
-        a_tuple: tuple[str]
-        a_list: list[str]
-        default_list: list[str] = field(factory=list)
+        a_set: set[str] = field(converter=comma_separated(set))
+        a_tuple: tuple[str] = field(converter=comma_separated(tuple))
+        a_list: list[str] = field(converter=comma_separated(list))
+        default_list: list[str] = field(factory=list, converter=comma_separated(list))
 
     expected_list = ["one", "two", "three"]
     expected_tuple = ("one", "two", "three")
@@ -70,7 +63,6 @@ def test_load_collections():
     )
 
     loaded = load_and_log(Collections, env=env)
-    assert loaded is not None
 
     assert loaded.a_set == expected_set
     assert loaded.a_tuple == expected_tuple
@@ -86,7 +78,6 @@ def test_loading_from_other():
     foo = object()
 
     loaded = load_and_log(OtherConfig, other=dict(foo=foo))
-    assert loaded is not None
 
     assert loaded.foo is foo
 
@@ -120,9 +111,7 @@ def test_logging(capsys):
         )
         default_name: str = field(default="LOG ME 4")
 
-    loaded = load_and_log(Loggable, env=dict(DEFAULT_NAME="default"))
-
-    assert loaded is not None
+    load_and_log(Loggable, env=dict(DEFAULT_NAME="default"))
 
     output = capsys.readouterr()
     logged = output.out
