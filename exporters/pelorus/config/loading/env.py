@@ -1,5 +1,10 @@
+from contextvars import ContextVar
+import itertools
+import os
 from typing import (
     Any,
+    Callable,
+    Collection,
     Generic,
     Literal,
     Mapping,
@@ -13,7 +18,7 @@ from typing import (
 import attrs
 from attrs import Attribute, fields
 
-from pelorus.config._attrs_compat import NOTHING
+from pelorus.config._attrs_compat import NOTHING, Factory
 from pelorus.config._common import (
     _DEFAULT_KEYWORD,
     _PELORUS_CONFIG_VALUE_SOURCES,
@@ -26,6 +31,100 @@ from pelorus.config.loading._errors import (
     MissingOther,
     MissingVariable,
 )
+from yaml import load
+
+
+config_env: ContextVar[Mapping[str, str]] = ContextVar("env", default=os.environ)
+default_keyword: ContextVar[str] = ContextVar("default_keyword", default="default")
+
+
+# TODO: generic?
+class EnvVars(Factory):
+    # not instantiated directly. Done via other functions.
+    # This makes error handling / fallbacks so much easier.
+    # this only needs logic to handle the case where lookups absolutely should happen!
+    # and we can rely on it being configured, isntead of us doing it ourselves!
+
+    name: str
+
+    def __init__(
+        self,
+        env_vars: tuple[str],
+        default: Union[Any, Literal[NOTHING], Factory],
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs, factory=self.load_from_env, takes_self=True)
+        self.env_vars = env_vars
+        self.default = default
+
+    def _env_lookups_default_source(self) -> str:
+        if len(self.env_vars) == 1:
+            return f"default value; {self.env_vars[0]} was not set"
+        else:
+            return "default value; none of " + ", ".join(self.env_vars) + " were set"
+
+    def _get_default(self) -> Union[Any, Literal[NOTHING]]:
+        if self.default is NOTHING:
+            return NOTHING
+
+        if isinstance(self.default, Factory):
+            if self.default.takes_self:
+                return self.default.factory(loading_instance)  # type: ignore
+            else:
+                return self.default.factory()  # type: ignore
+        else:
+            return self.default
+
+    def first_env_match(self) -> Optional[tuple[str, str]]:
+        env = config_env.get()
+        for name in self.env_vars:
+            if name in env:
+                return name, env[name]
+
+        return None
+
+    def _load(
+        self,
+    ) -> tuple[str, str]:
+        if (result := self.first_env_match()) is None:
+            if (value := self._get_default()) is NOTHING:
+                raise MissingVariable(self.name, self.env_vars)
+
+            return value, self._env_lookups_default_source()
+
+        env_name, value = result
+
+        if value == default_keyword.get():
+            if (value := self._get_default()) is NOTHING:
+                raise MissingDefault(self.name, env_name)
+
+            return value, f"default value ({env_name} set to {value}"
+
+        return value, f"from env var {env_name}"
+
+    def load_from_env(self, loading_instance) -> str:
+        value, source = self._load()
+        getattr(loading_instance, )
+
+
+# def env_vars(lookup: str, *lookups: str, default: Union[str, None, Literal[NOTHING]]):
+#     all_lookups = tuple(lookup, *lookups)
+
+#     def _lookup_from_env_vars(self):
+#         env = _env.get()
+#         for name in all_lookups:
+#             if name in env:
+#                 value = env[name]
+#                 break
+#         else:
+#             if default is not NOTHING:
+#                 value = default
+#             else:
+#                 raise MissingVariable()
+
+#     return attrs.Factory(_lookup_from_env_vars, takes_self=True)
+
 
 _ENV_LOOKUPS_KEY = "__pelorus_config_env_lookups"
 
