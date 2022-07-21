@@ -16,10 +16,10 @@ from pelorus.config.loading import (
     MissingDataError,
     ValueWithSource,
     _EnvFinder,
+    env_vars,
+    no_env_vars,
 )
-from pelorus.config.log import REDACT, SKIP
-
-_logger = logging.getLogger(__name__)
+from pelorus.config.log import LOG, REDACT, SKIP, Log, log
 
 
 def _prepare_kwargs(results: dict[str, Any]):
@@ -44,7 +44,12 @@ ConfigClass = TypeVar("ConfigClass")
 
 
 @attrs.frozen
-class LoggingLoader(Generic[ConfigClass]):
+class _LoggingLoader(Generic[ConfigClass]):
+    """
+    Load values for the given class from the environment (overridden by `other`),
+    logging their values and reporting errors, before instantiating the class.
+    """
+
     cls: Type[ConfigClass]
     other: dict[str, Any]
     env: Mapping[str, str]
@@ -118,9 +123,25 @@ def load_and_log(
     *,
     env: Mapping[str, str] = os.environ,
     default_keyword: str = "default",
-    logger: logging.Logger = _logger,
+    logger: logging.Logger = logging.getLogger(__name__),
 ) -> ConfigClass:
-    loader = LoggingLoader(
+    """
+    Load values for the given class from the environment (overridden by `other`),
+    logging their values and reporting errors, before instantiating the class.
+    """
+    loader = _LoggingLoader(
         cls, other=other, env=env, default_keyword=default_keyword, logger=logger
     )
     return loader.load_and_log()
+
+
+__all__ = [
+    "load_and_log",
+    "log",
+    "LOG",
+    "Log",
+    "SKIP",
+    "REDACT",
+    "env_vars",
+    "no_env_vars",
+]
