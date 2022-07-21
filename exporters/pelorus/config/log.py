@@ -5,7 +5,7 @@ from attrs import Attribute
 
 from pelorus.config.common import Metadata
 
-REDACT_WORDS = {"pass", "token", "key", "cred", "secret"}
+REDACT_WORDS = {"pass", "token", "key", "cred", "secret", "auth"}
 """
 Variables containing these words are not logged by default, nor are attributes starting with an underscore.
 """
