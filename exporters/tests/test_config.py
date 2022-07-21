@@ -1,11 +1,12 @@
 from typing import Optional
 
+import pytest
 from attrs import define, field
 
 from pelorus.config import load_and_log
 from pelorus.config.converters import comma_separated
 from pelorus.config.loading import env_vars, no_env_vars
-from pelorus.config.logging import LOG, Log, log
+from pelorus.config.log import LOG, Log, log
 
 
 def test_loading_simple_string():
@@ -84,7 +85,7 @@ def test_loading_from_other():
     assert loaded.foo is foo
 
 
-def test_logging(capsys):
+def test_logging(caplog: pytest.LogCaptureFixture):
     @define(kw_only=True)
     class Loggable:
         regular_field: str = field(default="LOG ME 1")
@@ -124,9 +125,7 @@ def test_logging(capsys):
         ),
     )
 
-    output = capsys.readouterr()
-    logged = output.out
-    print(logged)
+    logged = caplog.text
 
     assert "REDACT ME" not in logged
     assert "SHOULD BE ABSENT" not in logged
