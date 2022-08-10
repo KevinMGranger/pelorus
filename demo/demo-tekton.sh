@@ -64,10 +64,20 @@ if ! [[ $all_cmds_found ]]; then exit 1; fi
 tekton_setup_dir="$(dirname "${BASH_SOURCE[0]}")/tekton-demo-setup"
 python_example_txt="$(dirname "${BASH_SOURCE[0]}")/python-example/response.txt"
 
-echo "Switch to the basic-python-tekton namespace"
-oc get ns basic-python-tekton || oc create ns basic-python-tekton
-oc project basic-python-tekton
+echo "Create and/or switch to the basic-python-tekton namespace"
+if ! new_project_output="$(oc new-project basic-python-tekton 2>&1)"; then
+   if echo "$new_project_output" | grep -q "AlreadyExists"; then
+      echo "Project already exists"
+   else
+      echo "$new_project_output" >&2
+      exit 1
+   fi
+else
+   echo "$new_project_output"
+fi
 
+oc project basic-python-tekton
+      
 echo "Clean up resources prior to execution:"
 # cleaning resources vs. deleting the namespace to preserve pipeline run history
 # resources are cleaned to ensure that the new running artifact is from the latest build
@@ -84,22 +94,13 @@ echo "Setting up resources:"
 echo "1. Installing tekton operator"
 oc apply -f "$tekton_setup_dir/01-tekton-operator.yaml"
 
-echo "2. Setting up python tekton project"
-if ! project_setup_output="$(oc apply -f "$tekton_setup_dir/02-project.yaml" 2>&1)"; then
-   if echo "$project_setup_output" | grep -q "AlreadyExists"; then
-      echo "Project already exists"
-   else
-      echo "$project_setup_output" >&2
-      exit 1
-   fi
-else
-   echo "$project_setup_output"
-fi
+echo "2. Setting up Build and Deployment Resources"
+oc process -f "$tekton_setup_dir/02-build-and-deploy.yaml" > /tmp/02-build-and-deploy.yaml.out 2>/tmp/02-build-and-deploy.yaml.err
+oc apply -f /tmp/02-build-and-deploy.yaml.out
 
-
-echo "3. Setting up build and deployment information"
-oc process -f "$tekton_setup_dir/03-build-and-deploy.yaml" > /tmp/03-build-and-deploy.yaml.out 2>/tmp/03-build-and-deploy.yaml.err
-oc apply -f /tmp/03-build-and-deploy.yaml.out
+echo "3. Setting up tekton pipeline"
+oc process -f "$tekton_setup_dir/03-pipeline.yaml" > /tmp/03-pipeline.yaml.out 2>/tmp/03-pipeline.yaml.err
+oc apply -f /tmp/03-pipeline.yaml.out
 
 route="$(oc get -n basic-python-tekton route/basic-python-tekton --output=go-template='http://{{.spec.host}}')"
 
@@ -122,6 +123,7 @@ while true; do
    echo "The pipeline and first run of the demo app has started. When it has finished, you may rerun (with commits) or quit now."
    echo "1. Rerun with Commit"
    echo "2. Quit"
+   echo "3. Rerun without committing"
    read -r -p "Type 1 or 2: " -n 1 a
    echo ""
    case $a in
@@ -138,6 +140,11 @@ while true; do
       ;;
 
       2* ) exit 0 ;;
+      3* )
+         echo "Rerunning pipeline"
+         run_pipeline
+      ;;
+         
       * ) echo "I'm not sure what $a means, please give 1 or 2" >&2 ;;
    esac
 done
