@@ -17,8 +17,8 @@ from committime.collector_base import CommitMetric
 )
 def test_convert_date_time_to_timestamp(start_time, end_time, format):
     start_timestamp = 1593227828
-    end_timestamp = 1593238628.0
-    three_hours = 10800.0
+    end_timestamp = 1593238628
+    three_hours = 10800
 
     calc_start = pelorus.convert_date_time_to_timestamp(start_time, format)
     assert calc_start == start_timestamp
