@@ -2,8 +2,7 @@ import logging
 import os
 import pathlib
 from abc import ABC
-from datetime import datetime, timezone
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence
 
 from prometheus_client.registry import Collector
 
@@ -77,26 +76,6 @@ def setup_logging():
 # A NamespaceSpec lists namespaces to restrict the search to.
 # Use None or an empty list to include all namespaces.
 NamespaceSpec = Optional[Sequence[str]]
-
-
-def convert_date_time_to_timestamp(
-    date_time: Union[datetime, str], format_string="%Y-%m-%dT%H:%M:%SZ"
-) -> float:
-    if isinstance(date_time, datetime):
-        timestamp = date_time
-    else:
-        timestamp = datetime.strptime(date_time, format_string)
-    return timestamp.astimezone(timezone.utc).timestamp()
-
-
-def convert_timestamp_to_date_time_str(timestamp, format_string="%Y-%m-%dT%H:%M:%SZ"):
-    date_time_str = None
-    try:
-        date_time = datetime.fromtimestamp(timestamp, tz=timezone.utc)
-        date_time_str = date_time.strftime(format_string)
-    except ValueError:
-        raise
-    return date_time_str
 
 
 def get_app_label():

@@ -1,12 +1,14 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Union
 
+from pelorus.timeutil import parse_assuming_utc
+
 # https://docs.openshift.com/container-platform/4.10/rest_api/objects/index.html#io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
-DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def parse_datetime(dt_str: str) -> datetime:
-    return datetime.strptime(dt_str, DATETIME_FORMAT).replace(tzinfo=timezone.utc)
+    return parse_assuming_utc(dt_str, _DATETIME_FORMAT)
 
 
 def convert_datetime(dt: Union[str, datetime]) -> datetime:
