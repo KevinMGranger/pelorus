@@ -19,7 +19,6 @@ import logging
 from datetime import datetime
 from typing import Any, Optional, Union, cast
 
-import pytz
 import requests
 
 import pelorus
@@ -164,16 +163,10 @@ class GithubFailureCollector(AbstractFailureCollector):
         return critical_issues
 
     @classmethod
-    def convert_timestamp(cls, date_time):
+    def convert_timestamp(cls, date_time: str) -> float:
         """Convert a Github datetime with TZ to UTC"""
-        # Change the datetime to a string
-        utc = datetime.strptime(date_time, "%Y-%m-%dT%H:%M:%S%z").astimezone(pytz.utc)
-        # Change the datetime to a string
-        utc_string = utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-        # convert to timestamp
-        this_date = pelorus.convert_date_time_to_timestamp(utc_string)
-        # this_date is a float
-        return this_date
+        timestamp = datetime.strptime(date_time, "%Y-%m-%dT%H:%M:%S%z")
+        return timestamp.timestamp()
 
     def get_app_name(self, issue, label: Optional[dict[str, Any]]):
         if label:
