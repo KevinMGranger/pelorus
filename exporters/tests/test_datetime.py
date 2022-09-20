@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+import provider_common.github as github
 from pelorus.timeutil import (
     parse_assuming_utc,
     parse_guessing_timezone_DYNAMIC,
@@ -92,3 +93,12 @@ def test_dynamic_parsing_assumed():
     assert actual_parsed == DATETIME
 
     assert actual_parsed.timestamp() == UNIX
+
+
+def test_github():
+    TIMESTRING = "2022-05-11T21:50:08Z"
+    EXPECTED_UNIX = 1652305808
+
+    actual_unix = github.parse_datetime(TIMESTRING).timestamp()
+
+    assert actual_unix == EXPECTED_UNIX
