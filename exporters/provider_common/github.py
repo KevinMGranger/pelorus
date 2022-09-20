@@ -28,7 +28,9 @@ def parse_datetime(datetime_str: str) -> datetime:
 
     May throw a ValueError if it doesn't match the expected format.
     """
-    return datetime.strptime(datetime_str, _DATETIME_FORMAT).astimezone(timezone.utc)
+    return datetime.strptime(datetime_str, _DATETIME_FORMAT).replace(
+        tzinfo=timezone.utc
+    )
 
 
 @frozen
