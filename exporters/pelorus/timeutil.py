@@ -26,7 +26,9 @@ def parse_assuming_utc(timestring: str, format: str) -> datetime:
     """
     parsed = datetime.strptime(timestring, format)
     if is_zone_aware(parsed):
-        raise ValueError("tried to assume UTC with a timezone-aware time format")
+        raise ValueError(
+            f"Tried to assume UTC with a timezone-aware time format of {format}"
+        )
     else:
         return parsed.replace(tzinfo=timezone.utc)
 
@@ -40,10 +42,10 @@ def parse_tz_aware(timestring: str, format: str) -> datetime:
     parsed = datetime.strptime(timestring, format)
     if not is_zone_aware(parsed):
         raise ValueError(
-            "tried to use a timezone-naive format when a timezone-aware format was required."
+            f"Tried to be timezone-aware with timezone-naive format of {format}"
         )
     else:
-        return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
 
 
 def parse_guessing_timezone_DYNAMIC(timestring: str, format: str) -> datetime:
