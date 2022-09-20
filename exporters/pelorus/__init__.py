@@ -3,7 +3,7 @@ import os
 import pathlib
 from abc import ABC
 from datetime import datetime, timezone
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 from prometheus_client.registry import Collector
 
@@ -79,16 +79,14 @@ def setup_logging():
 NamespaceSpec = Optional[Sequence[str]]
 
 
-def convert_date_time_to_timestamp(date_time, format_string="%Y-%m-%dT%H:%M:%SZ"):
-    timestamp = None
-    try:
-        if isinstance(date_time, datetime):
-            timestamp = date_time
-        else:
-            timestamp = datetime.strptime(date_time, format_string)
-    except ValueError:
-        raise
-    return timestamp.replace(tzinfo=timezone.utc).timestamp()
+def convert_date_time_to_timestamp(
+    date_time: Union[datetime, str], format_string="%Y-%m-%dT%H:%M:%SZ"
+) -> float:
+    if isinstance(date_time, datetime):
+        timestamp = date_time
+    else:
+        timestamp = datetime.strptime(date_time, format_string)
+    return timestamp.astimezone(timezone.utc).timestamp()
 
 
 def convert_timestamp_to_date_time_str(timestamp, format_string="%Y-%m-%dT%H:%M:%SZ"):
