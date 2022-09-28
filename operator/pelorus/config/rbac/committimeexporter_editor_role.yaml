@@ -1,0 +1,24 @@
+# permissions for end users to edit committimeexporters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: committimeexporter-editor-role
+rules:
+- apiGroups:
+  - pelorus.konveyor.io
+  resources:
+  - committimeexporters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - pelorus.konveyor.io
+  resources:
+  - committimeexporters/status
+  verbs:
+  - get

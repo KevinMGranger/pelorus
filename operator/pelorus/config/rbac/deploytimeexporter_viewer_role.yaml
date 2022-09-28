@@ -1,0 +1,20 @@
+# permissions for end users to view deploytimeexporters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deploytimeexporter-viewer-role
+rules:
+- apiGroups:
+  - pelorus.konveyor.io
+  resources:
+  - deploytimeexporters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - pelorus.konveyor.io
+  resources:
+  - deploytimeexporters/status
+  verbs:
+  - get

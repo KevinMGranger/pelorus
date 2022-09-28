@@ -1,0 +1,18 @@
+# Use the 'create api' subcommand to add watches to this file.
+- group: pelorus.konveyor.io
+  version: v1alpha1
+  kind: Pelorus
+  chart: helm-charts/pelorus
+- group: pelorus.konveyor.io
+  version: v1alpha1
+  kind: CommitTimeExporter
+  chart: helm-charts/exporters
+- group: pelorus.konveyor.io
+  version: v1alpha1
+  kind: DeployTimeExporter
+  chart: helm-charts/exporters
+- group: pelorus.konveyor.io
+  version: v1alpha1
+  kind: FailureTimeExporter
+  chart: helm-charts/exporters
+#+kubebuilder:scaffold:watch

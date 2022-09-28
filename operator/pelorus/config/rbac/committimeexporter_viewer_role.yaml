@@ -1,0 +1,20 @@
+# permissions for end users to view committimeexporters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: committimeexporter-viewer-role
+rules:
+- apiGroups:
+  - pelorus.konveyor.io
+  resources:
+  - committimeexporters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - pelorus.konveyor.io
+  resources:
+  - committimeexporters/status
+  verbs:
+  - get

@@ -1,0 +1,37 @@
+domain: konveyor.io
+layout:
+- helm.sdk.operatorframework.io/v1
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: pelorus
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: konveyor.io
+  group: pelorus
+  kind: Pelorus
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: konveyor.io
+  group: pelorus
+  kind: CommitTimeExporter
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: konveyor.io
+  group: pelorus
+  kind: DeployTimeExporter
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: konveyor.io
+  group: pelorus
+  kind: FailureTimeExporter
+  version: v1alpha1
+version: "3"
