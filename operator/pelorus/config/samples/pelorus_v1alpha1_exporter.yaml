@@ -1,0 +1,9 @@
+apiVersion: pelorus.konveyor.io/v1alpha1
+kind: Exporter
+metadata:
+  name: exporter-sample
+spec:
+  # Default values copied from <project_dir>/helm-charts/exporter/values.yaml
+  null
+  
+  

@@ -1,9 +1,0 @@
-apiVersion: pelorus.konveyor.io/v1alpha1
-kind: CommitTimeExporter
-metadata:
-  name: committimeexporter-sample
-spec:
-  # Default values copied from <project_dir>/helm-charts/exporters/values.yaml
-  null
-  
-  

@@ -1,0 +1,71 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: exporters.pelorus.konveyor.io
+spec:
+  group: pelorus.konveyor.io
+  names:
+    kind: Exporter
+    listKind: ExporterList
+    plural: exporters
+    singular: exporter
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Defines a running pelorus exporter
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired state of the Exporter
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+            properties:
+              type:
+                type: string
+                enum: [deploytime, committime, failure]
+                description: The type of exporter to run.
+              logLevel:
+                type: string
+                enum: [DEBUG, INFO, WARNING, ERROR]
+                description: Set the log level.
+                default: INFO
+              appLabel:
+                type: string
+                description: Changes the label key used to identify applications
+                # TODO: pattern based on legal label fields?
+                default: app.kubernetes.io/name
+              prodLabel:
+                type: string
+                description: Changes the label key used to identify namespaces that are considered production environments. Matches all by default.
+              namespaces:
+                type: array
+                description: Restricts the set of namespaces from which metrics will be collected. Will check all by default.
+                items:
+                  type: string
+          status:
+            description: Status defines the observed state of the Exporter
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+        type: object
+      additionalPrinterColumns:
+        - name: Exporter Type
+          type: string
+          jsonPath: .spec.type
+    served: true
+    storage: true
+    subresources:
+      status: {}

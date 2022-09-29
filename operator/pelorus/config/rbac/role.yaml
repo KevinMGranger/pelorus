@@ -205,4 +205,56 @@ rules:
   resources:
   - "servicemonitors"
 
+##
+## Rules for pelorus.konveyor.io/v1alpha1, Kind: Exporter
+##
+- apiGroups:
+  - pelorus.konveyor.io
+  resources:
+  - exporters
+  - exporters/status
+  - exporters/finalizers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  - services/finalizers
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - configmaps
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  - replicasets
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+
 #+kubebuilder:scaffold:rules

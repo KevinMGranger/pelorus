@@ -34,4 +34,11 @@ resources:
   group: pelorus
   kind: FailureTimeExporter
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: konveyor.io
+  group: pelorus
+  kind: Exporter
+  version: v1alpha1
 version: "3"

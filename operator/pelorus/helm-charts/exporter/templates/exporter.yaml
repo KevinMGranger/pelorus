@@ -1,0 +1,32 @@
+# https://hackmd.io/@openshift-mig-eng/rkNC3W8dq
+{{- if and (.image_name) (or .source_ref .source_url) }}
+  {{- fail "ERROR: image_name configuration can't be used with source_ref or source_url" }}
+{{- end }}
+
+{{- if and (.image_tag) (or .source_ref .source_url) }}
+  {{- fail "ERROR: image_tag configuration can't be used with source_ref or source_url" }}
+{{- end }}
+
+{{- if and .image_name .image_tag }}
+  {{- if contains ":" .image_name }}
+    {{- fail "ERROR: image_tag configuration can't be used with image_name that includes tag e.g. generic-exporter:tag-name" }}
+  {{- end }}
+{{- end }}
+
+{{- if or .source_ref .source_url }}
+  {{ include "exporters.buildconfig"  }}
+{{- end }}
+
+{{ include "exporters.deploymentconfig"  }}
+
+{{- if or .source_ref .source_url }}
+  {{ include "exporters.imagestream"  }}
+{{- else }}
+  {{- if not .exporter_type }}
+    {{- fail "ERROR: exporter_type must be provided when using podman image installation method" }}
+  {{- end}}
+  {{ include "exporters.imagestream_from_image"  }}
+{{- end }}
+
+{{ include "exporters.route"  }}
+{{ include "exporters.service"  }}

@@ -1,3 +1,3 @@
 apiVersion: v2
-name: exporters
+name: exporter
 version: v1.3.0

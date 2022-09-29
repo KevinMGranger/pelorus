@@ -4,25 +4,25 @@ apiVersion: apps.openshift.io/v1
 kind: DeploymentConfig
 metadata:
   labels:
-    app.kubernetes.io/name: {{ .app_name }}
-    application: {{ .app_name }}
-  name: {{ .app_name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
+    application: {{ .Release.Name }}
+  name: {{ .Release.Name }}
 spec:
   replicas: 1
   revisionHistoryLimit: 10
   selector:
-    app.kubernetes.io/name: {{ .app_name }}
-    app: {{ .app_name }}
-    deploymentconfig: {{ .app_name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app: {{ .Release.Name }}
+    deploymentconfig: {{ .Release.Name }}
   strategy:
     type: Rolling
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ .app_name }}
-        app: {{ .app_name }}
-        deploymentconfig: {{ .app_name }}
-        application: {{ .app_name }}
+        app.kubernetes.io/name: {{ .Release.Name }}
+        app: {{ .Release.Name }}
+        deploymentconfig: {{ .Release.Name }}
+        application: {{ .Release.Name }}
         pelorus.konveyor.io/exporter-type: {{ .exporter_type | default "generic-exporter" }}
     spec:
       serviceAccount: pelorus-exporter
@@ -33,7 +33,7 @@ spec:
             name: {{ $config.map_name }}
         {{- end }}
       containers:
-        - name: {{ .app_name }}
+        - name: {{ .Release.Name }}
           imagePullPolicy: Always
 
           volumeMounts:
@@ -60,11 +60,27 @@ spec:
 
             {{- if and (not .source_ref) (not .source_url) }}
             - name: PELORUS_IMAGE_TAG
-              value: {{ .app_name }}:{{ .image_tag | default "stable" }}
+              value: {{ .Release.Name }}:{{ .image_tag | default "stable" }}
             {{- end }}
 
             {{- if .extraEnv }}
             {{- toYaml .extraEnv | nindent 12}}
+            {{- end }}
+
+            {{- if .logLevel }}
+            LOG_LEVEL: {{ .logLevel }}
+            {{- end }}
+
+            {{- if .appLabel }}
+            APP_LABEL: {{ .appLabel }}
+            {{- end }}
+
+            {{- if .prodLabel }}
+            PROD_LABEL: {{ .prodLabel }}
+            {{- end }}
+
+            {{- if .namespaces }}
+            NAMESPACES: {{ join ',' .namespaces }}
             {{- end }}
           ports:
           - containerPort: 8080
@@ -84,13 +100,13 @@ spec:
   - imageChangeParams:
       automatic: true
       containerNames:
-      - {{ .app_name }}
+      - {{ .Release.Name }}
       from:
         kind: ImageStreamTag
         {{- if or .source_ref .source_url }}
-        name: {{ .app_name }}:latest
+        name: {{ .Release.Name }}:latest
         {{- else }}
-        name: {{ .app_name }}:{{ .image_tag | default "stable" }}
+        name: {{ .Release.Name }}:{{ .image_tag | default "stable" }}
         {{- end }}
     type: ImageChange
 {{- end }}

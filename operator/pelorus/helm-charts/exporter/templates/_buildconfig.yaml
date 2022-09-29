@@ -4,16 +4,16 @@ apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   labels:
-    app: {{ .app_name }}
-    app.kubernetes.io/name: {{ .app_name }}
-    application: {{ .app_name}}
-  name: {{ .app_name }}
+    app: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
+    application: {{ .Release.Name}}
+  name: {{ .Release.Name }}
 spec:
   failedBuildsHistoryLimit: 5
   output:
     to:
       kind: ImageStreamTag
-      name: {{ .app_name }}:latest
+      name: {{ .Release.Name }}:latest
   source:
     contextDir: {{ .source_context_dir | default "exporters/" }}
     git:

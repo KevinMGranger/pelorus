@@ -1,7 +1,5 @@
 ## Append samples you want in your CSV to this file as resources ##
 resources:
 - pelorus_v1alpha1_pelorus.yaml
-- pelorus_v1alpha1_committimeexporter.yaml
-- pelorus_v1alpha1_deploytimeexporter.yaml
-- pelorus_v1alpha1_failuretimeexporter.yaml
+- pelorus_v1alpha1_exporter.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
