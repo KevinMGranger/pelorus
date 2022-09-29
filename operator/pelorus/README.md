@@ -2,6 +2,8 @@
 
 ## Approach
 
+**NOTE**: another last-minute realization: it names helm releases per CR _Name_. It's not namespaced or anything. What??? Nonsensical.
+
 **NOTE**: I realized that one CRD per exporter type won't work (at least right now).
 This is because the helm releases are named after the CR name. The kind isn't embedded in it.
 
@@ -13,12 +15,45 @@ Add stuff to the API spec reflecting the configuration options for each exporter
 
 Added additional printer columns for the essential field(s): exporter type
 
-## Chart modifications
+### Helm Limitation:
+
+Helm Operators from the Operator SDK-- the releases they create are named after the Custom Resource's name, with no namespacing. That means that a `foo.example.com/v1/Frobnicator/NameHere` conflicts with a `bar.example.com/v2/Widget/NameHere`.
+
+Looks like this is acknowledged in the docs for `release.getReleaseName`: https://github.com/operator-framework/operator-sdk/blob/b97d84fc19c67f5c9a2e4c10ada1a8000424e63e/internal/helm/release/manager_factory.go#L117
+
+The PR in question: https://github.com/operator-framework/operator-sdk/pull/1818
+
+> Description of the change:
+> This changes the release name for new CRs to be the CR name. Releases for existing CRs will continue to use the legacy name. If a CR is created, and a release already exists with the same name from a CR of a different kind, an error is returned, indicating a duplicate name.
+> 
+> Motivation for the change:
+> The reason for this change is based on an interaction between the Kubernetes constraint that limits label values to 63 characters and the Helm convention of including the release name as a label on release resources.
+> 
+> Since the legacy release name includes a 25-character value based on the parent CR's UID, it leaves little extra space for the CR name and any other identifying names or characters added by templates.
+
+Now, helm embedding a label with the release name is merely a _convention_.
+
+But... that was merged a few months before Helm v3 came out. In helm v3, 
+
+### Chart modifications
 
 - lifted exporters from dependency / sub-chart of pelorus into a standalone chart
 - made exporters _singular_. Each exporter is now its own deployment
 - made the app name(s) the release name, so it inherits the name from the CRD
 - made certain config items top-level variables with camelCase naming (only deploytime for now, and only its specifics)
+
+### User Adoption
+
+- A script to adapt configmaps and values.yml files would be easy to make
+- We can keep support for configmaps, and will of course need to keep that for secrets
+
+## Analysis
+
+### Advantages
+- only moderate modifications to current approach
+
+### Unknowns
+- what does an upgrade path look like? (e.g. eventually separating CRDs per exporter type)
 
 ## Open Questions
 

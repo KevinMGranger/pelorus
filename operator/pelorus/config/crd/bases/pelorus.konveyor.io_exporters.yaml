@@ -61,10 +61,10 @@ spec:
             type: object
             x-kubernetes-preserve-unknown-fields: true
         type: object
-      additionalPrinterColumns:
-        - name: Exporter Type
-          type: string
-          jsonPath: .spec.type
+      # additionalPrinterColumns:
+      #   - name: Exporter Type
+      #     type: string
+      #     jsonPath: .spec.type
     served: true
     storage: true
     subresources:
