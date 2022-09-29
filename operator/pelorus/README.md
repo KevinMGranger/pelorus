@@ -42,3 +42,7 @@ Added additional printer columns for the essential field(s): exporter type
   - [ ] podman
   - [ ] get it working with the cluster internal registry
 - [ ] verify how default and nullable interact
+
+## Future Ideas
+
+Ultra-simple web interface that checks that you have things deployed correctly (e.g. did you deploy a pelorus core and some number of exporters? Are there running grafana and prometheus instances?)
