@@ -130,7 +130,7 @@ class ImageCommitCollector(AbstractCommitCollector):
                 ).timestamp()
         return metric
 
-    def get_commit_time(self, metric) -> Optional[CommitMetric]:
+    def get_commit_time(self, metric: CommitMetric) -> Optional[CommitMetric]:
         return super().get_commit_time(metric)
 
     def _set_commit_time_from_annotations(

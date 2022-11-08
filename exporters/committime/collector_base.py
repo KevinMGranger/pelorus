@@ -113,14 +113,12 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
 
         for my_metric in commit_metrics:
             logging.info(
-                "Collected commit_timestamp{ namespace=%s, app=%s, commit=%s, image_sha=%s } %s"
-                % (
-                    my_metric.namespace,
-                    my_metric.name,
-                    my_metric.commit_hash,
-                    my_metric.image_hash,
-                    str(float(my_metric.commit_timestamp)),
-                )
+                "Collected commit_timestamp{ namespace=%s, app=%s, commit=%s, image_sha=%s } %s",
+                my_metric.namespace,
+                my_metric.name,
+                my_metric.commit_hash,
+                my_metric.image_hash,
+                my_metric.commit_timestamp,
             )
             commit_metric.add_metric(
                 [

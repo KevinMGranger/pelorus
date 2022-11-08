@@ -52,7 +52,7 @@ class GitLabCommitCollector(AbstractCommitCollector):
             gitlab_client = gitlab.Gitlab(
                 git_server,
                 private_token=self.token,
-                api_version=4,
+                api_version="4",
                 session=self.session,
             )
         else:
@@ -61,7 +61,7 @@ class GitLabCommitCollector(AbstractCommitCollector):
                 "Connecting to GitLab server without token: %s" % (git_server)
             )
             gitlab_client = gitlab.Gitlab(
-                git_server, api_version=4, session=self.session
+                git_server, api_version="4", session=self.session
             )
 
         return gitlab_client
