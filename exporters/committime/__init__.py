@@ -23,6 +23,7 @@ from typing import Optional
 import attr
 import giturlparse
 
+from pelorus.type_compat.openshift import CommonResourceInstance
 from pelorus.utils import collect_bad_attribute_path_error, get_nested
 
 DEFAULT_PROVIDER = "git"
@@ -32,13 +33,10 @@ GIT_PROVIDER_TYPES = {"github", "bitbucket", "gitea", "azure-devops", "gitlab"}
 SUPPORTED_PROTOCOLS = {"http", "https", "ssh", "git"}
 
 
-# TODO: the majority of these fields are unused.
-# Let's figure out why they're there.
 @attr.define
 class CommitMetric:
     name: str = attr.field()
     annotations: dict = attr.field(default=None, kw_only=True)
-    labels: dict = attr.field(default=None, kw_only=True)
     namespace: Optional[str] = attr.field(default=None, kw_only=True)
 
     __repo_url: str = attr.field(default=None, init=False)
@@ -49,7 +47,6 @@ class CommitMetric:
     __repo_project = attr.field(default=None, init=False)
     __repo_port = attr.field(default=None, init=False)
 
-    committer: Optional[str] = attr.field(default=None, kw_only=True)
     commit_hash: Optional[str] = attr.field(default=None, kw_only=True)
     commit_time: Optional[str] = attr.field(default=None, kw_only=True)
     """
@@ -63,11 +60,8 @@ class CommitMetric:
     """
 
     build_name: Optional[str] = attr.field(default=None, kw_only=True)
-    build_config_name: Optional[str] = attr.field(default=None, kw_only=True)
+    "The name of the build this commit metric came from. Only used for logging."
 
-    image_location: Optional[str] = attr.field(default=None, kw_only=True)
-    image_name: Optional[str] = attr.field(default=None, kw_only=True)
-    image_tag: Optional[str] = attr.field(default=None, kw_only=True)
     image_hash: Optional[str] = attr.field(default=None, kw_only=True)
 
     @property
@@ -151,30 +145,26 @@ class CommitMetric:
     # missing attributes or with False argument are handled specially:
     #
     # name: set when the object is constructed
-    # labels: must be converted from an `openshift.dynamic.ResourceField`
     # repo_url: if it's not present in the Build, fallback logic needs to be handled elsewhere
     # commit_hash: if it's missing in the Build, fallback logic needs to be handled elsewhere
-    # commit_timestamp: very special handling, the main purpose of each committime collector
-    # comitter: not required to calculate committime
     _BUILD_MAPPING = dict(
         build_name=("metadata.name", True),
-        build_config_name=("metadata.labels.buildconfig", True),
         namespace=("metadata.namespace", True),
-        image_location=("status.outputDockerImageReference", True),
         image_hash=("status.output.to.imageDigest", True),
         commit_hash=("spec.revision.git.commit", False),
         repo_url=("spec.source.git.uri", False),
-        committer=("spec.revision.git.author.name", False),
     )
 
-    _ANNOTATION_MAPPIG = dict(
+    _ANNOTATION_MAPPING = dict(
         repo_url="io.openshift.build.source-location",
         commit_hash="io.openshift.build.commit.id",
         commit_time="io.openshift.build.commit.date",
     )
 
 
-def commit_metric_from_build(app: str, build, errors: list) -> CommitMetric:
+def commit_metric_from_build(
+    app: str, build: CommonResourceInstance, errors: list
+) -> CommitMetric:
     """
     Create a CommitMetric from build information.
     Will collect errors for missing data instead of failing early.

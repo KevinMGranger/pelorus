@@ -32,7 +32,7 @@ class ImageCommitCollector(AbstractCommitCollector):
 
     date_format: str
 
-    date_annotation_name: str = CommitMetric._ANNOTATION_MAPPIG["commit_time"]
+    date_annotation_name: str = CommitMetric._ANNOTATION_MAPPING["commit_time"]
 
     # maps attributes to their location in a `image.openshift.io/v1`.
     # Similar to Build Mapping from committime.__init__.py

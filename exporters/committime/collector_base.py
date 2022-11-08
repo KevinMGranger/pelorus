@@ -80,12 +80,12 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
     commit_dict: dict[str, Optional[float]] = field(factory=dict, init=False)
 
     hash_annotation_name: str = field(
-        default=CommitMetric._ANNOTATION_MAPPIG["commit_hash"],
+        default=CommitMetric._ANNOTATION_MAPPING["commit_hash"],
         metadata=env_vars(COMMIT_HASH_ANNOTATION_ENV),
     )
 
     repo_url_annotation_name: str = field(
-        default=CommitMetric._ANNOTATION_MAPPIG["repo_url"],
+        default=CommitMetric._ANNOTATION_MAPPING["repo_url"],
         metadata=env_vars(COMMIT_REPO_URL_ANNOTATION_ENV),
     )
 
@@ -199,7 +199,9 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
         # This will perform the API calls and parse out the necessary fields into metrics
         pass
 
-    def get_metrics_from_apps(self, apps, namespace):
+    def get_metrics_from_apps(
+        self, apps: dict[str, list[CommonResourceInstance]], namespace: str
+    ):
         """Expects a sorted array of build data sorted by app label"""
         metrics = []
         for app in apps:
@@ -233,7 +235,13 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
 
         return metrics
 
-    def get_metric_from_build(self, build, app, namespace, repo_url):
+    def get_metric_from_build(
+        self,
+        build: CommonResourceInstance,
+        app: str,
+        namespace: str,
+        repo_url: Optional[str],
+    ):
         errors = []
         try:
             metric = commit_metric_from_build(app, build, errors)
@@ -244,7 +252,6 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
             # Populate annotations and labels required by
             # subsequent _set_ functions.
             metric.annotations = vars(build.metadata.annotations)
-            metric.labels = vars(build.metadata.labels)
 
             metric = self._set_repo_url(metric, repo_url, build, errors)
 
@@ -294,7 +301,7 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
         return metric
 
     def _set_repo_url(
-        self, metric: CommitMetric, repo_url: str, build, errors: list
+        self, metric: CommitMetric, repo_url: Optional[str], build, errors: list
     ) -> CommitMetric:
         # Logic to get repo_url, first conditon wins
         # 1. Gather repo_url from the build from spec.source.git.uri
@@ -397,34 +404,40 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
 
         return metric
 
-    def get_repo_from_jenkins(self, jenkins_builds):
-        if jenkins_builds:
-            # First, check for cases where the source url is in pipeline params
-            git_repo_regex = re.compile(
-                r"((\w+://)|(.+@))([\w\d\.]+)(:[\d]+){0,1}/*(.*)"
-            )
-            for env in jenkins_builds[0].spec.strategy.jenkinsPipelineStrategy.env:
-                logging.debug("Searching %s=%s for git urls" % (env.name, env.value))
-                try:
-                    result = git_repo_regex.match(env.value)
-                except TypeError:
-                    result = None
+    def get_repo_from_jenkins(
+        self, jenkins_builds: list[CommonResourceInstance]
+    ) -> Optional[str]:
+        if not jenkins_builds:
+            return None
+        # First, check for cases where the source url is in pipeline params
+        git_repo_regex = re.compile(r"((\w+://)|(.+@))([\w\d\.]+)(:[\d]+){0,1}/*(.*)")
+        for env in jenkins_builds[0].spec.strategy.jenkinsPipelineStrategy.env:
+            logging.debug("Searching %s=%s for git urls" % (env.name, env.value))
+            try:
+                result = git_repo_regex.match(env.value)
                 if result:
                     logging.debug("Found result %s" % env.name)
                     return env.value
+            except TypeError:
+                # TODO: this is likely a holdover from either trying to
+                # use .value on None, or passing None to match.
+                # Should clean this up.
+                pass
 
-            try:
-                # Then default to the repo listed in '.spec.source.git'
-                return jenkins_builds[0].spec.source.git.uri
-            except AttributeError:
-                logging.debug(
-                    "JenkinsPipelineStrategy build %s has no git repo configured. "
-                    % jenkins_builds[0].metadata.name
-                    + "Will check for source URLs in params."
-                )
+        try:
+            # Then default to the repo listed in '.spec.source.git'
+            return jenkins_builds[0].spec.source.git.uri
+        except AttributeError:
+            logging.debug(
+                "JenkinsPipelineStrategy build %s has no git repo configured. "
+                % jenkins_builds[0].metadata.name
+                + "Will check for source URLs in params."
+            )
         # If no repo is found, we will return None, which will be handled later on
 
-    def _get_repo_from_build_config(self, build):
+    def _get_repo_from_build_config(
+        self, build: CommonResourceInstance
+    ) -> Optional[str]:
         """
         Determines the repository url from the parent BuildConfig that created the Build resource in case
         the BuildConfig has the git uri but the Build does not

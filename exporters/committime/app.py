@@ -67,7 +67,7 @@ class ImageCommittimeConfig:
     )
 
     date_annotation_name: str = field(
-        default=CommitMetric._ANNOTATION_MAPPIG["commit_time"],
+        default=CommitMetric._ANNOTATION_MAPPING["commit_time"],
         metadata=env_vars(COMMIT_DATE_ANNOTATION_ENV),
     )
 
