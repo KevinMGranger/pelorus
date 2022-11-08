@@ -24,7 +24,6 @@ from typing import ClassVar, Iterable, Optional
 
 import attrs
 from attrs import define, field
-from jsonpath_ng import parse
 from openshift.dynamic import DynamicClient
 from prometheus_client.core import GaugeMetricFamily
 
@@ -32,6 +31,10 @@ import pelorus
 from committime import CommitMetric, commit_metric_from_build
 from pelorus.config import env_vars
 from pelorus.config.converters import comma_separated, pass_through
+from pelorus.type_compat.openshift import (
+    CommonResourceInstance,
+    CommonResourceInstanceList,
+)
 from pelorus.utils import Url, get_nested
 
 # Custom annotations env for the Build
@@ -143,29 +146,20 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
         logging.info("Watching namespaces: %s" % (watched_namespaces))
         return watched_namespaces
 
-    def _get_openshift_obj_by_app(self, openshift_obj: str) -> Optional[dict]:
+    def _get_openshift_obj_by_app(
+        self, openshift_obj: CommonResourceInstanceList[CommonResourceInstance]
+    ) -> dict[str, list[CommonResourceInstance]]:
         app_label = self.app_label
 
-        # use a jsonpath expression to find all values for the app label
-        jsonpath_str = "$['items'][*]['metadata']['labels']['" + str(app_label) + "']"
+        items_by_app: dict[str, list[CommonResourceInstance]] = {}
 
-        jsonpath_expr = parse(jsonpath_str)
+        for item in openshift_obj.items:
+            app = item.metadata.labels.get(app_label)
+            if not app:
+                continue
 
-        found = jsonpath_expr.find(openshift_obj)
-
-        apps = {match.value for match in found}
-
-        if not apps:
-            return None
-
-        items_by_app = {}
-
-        for app in apps:
-            items_by_app[app] = list(
-                filter(
-                    lambda b: b.metadata.labels[app_label] == app, openshift_obj.items
-                )
-            )
+            app_item_list = items_by_app.setdefault(app, [])
+            app_item_list.append(item)
 
         return items_by_app
 
