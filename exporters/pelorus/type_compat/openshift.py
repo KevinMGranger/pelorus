@@ -19,17 +19,22 @@ class Metadata:
     annotations: dict[str, str]
 
 
-class CommonResource(ResourceInstance):
+class CommonResourceInstance(ResourceInstance):
     apiVersion: str
     kind: str
     metadata: Metadata
 
 
-R = TypeVar("R", bound=CommonResource)
+R = TypeVar("R", bound=CommonResourceInstance)
 
 
-class ResourceInstanceList(CommonResource, Generic[R]):
+class CommonResourceInstanceList(CommonResourceInstance, Generic[R]):
     items: list[R]
 
 
-__all__ = ["ResourceInstance", "Metadata", "CommonResource", "ResourceInstanceList"]
+__all__ = [
+    "ResourceInstance",
+    "Metadata",
+    "CommonResourceInstance",
+    "CommonResourceInstanceList",
+]
