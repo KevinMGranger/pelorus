@@ -17,10 +17,9 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Optional
 
-import attr
+import attrs
 import giturlparse
 
 from pelorus.type_compat.openshift import CommonResourceInstance
@@ -33,112 +32,94 @@ GIT_PROVIDER_TYPES = {"github", "bitbucket", "gitea", "azure-devops", "gitlab"}
 SUPPORTED_PROTOCOLS = {"http", "https", "ssh", "git"}
 
 
-@attr.define
+@attrs.frozen
+class GitRepo:
+    "Extracted information about a git repo url."
+
+    url: str
+    """
+    The full URL for the repo.
+    Obtained from build metadata, Image annotations, etc.
+    """
+    protocol: str
+    fqdn: str
+    group: str
+    name: str
+    "The git repo name, e.g. myrepo.git"
+    project: str
+    "The git project name. Typically the repo name without `.git`"
+    port: Optional[str]
+
+    @property
+    def server(self) -> str:
+        "The protocol, server FQDN, and port in URL format."
+        url = f"{self.protocol}://{self.fqdn}"
+
+        if self.port:
+            url += f":{self.port}"
+
+        return url
+
+    @classmethod
+    def from_url(cls, url: str):
+        "Parse the given URL and handle the edge cases for it."
+
+        # code inherited from old committime metric class.
+        # Unsure of the purpose of some of this code.
+
+        # Ensure git URI does not end with "/", issue #590
+        url = url.strip("/")
+        parsed = giturlparse.parse(url)
+        if len(parsed.protocols) > 0 and parsed.protocols[0] not in SUPPORTED_PROTOCOLS:
+            raise ValueError("Unsupported protocol %s", parsed.protocols[0])
+        protocol = parsed.protocol
+        # In the case of multiple subgroups the host will be in the pathname
+        # Otherwise, it will be in the resource
+        if parsed.pathname.startswith("//"):
+            fqdn = parsed.pathname.split("/")[2]
+            protocol = parsed.protocols[0]
+        else:
+            fqdn = parsed.resource
+        group = parsed.owner
+        name = parsed.name
+        project = parsed.name
+        port = parsed.port
+
+        return cls(url, protocol, fqdn, group, name, project, port)
+
+
+@attrs.define
 class CommitMetric:
-    name: str = attr.field()
-    annotations: dict = attr.field(default=None, kw_only=True)
-    namespace: Optional[str] = attr.field(default=None, kw_only=True)
+    name: str = attrs.field()
+    annotations: dict[str, str] = attrs.field(factory=dict, kw_only=True)
+    namespace: Optional[str] = attrs.field(default=None, kw_only=True)
 
-    __repo_url: str = attr.field(default=None, init=False)
-    __repo_protocol = attr.field(default=None, init=False)
-    __repo_fqdn: str = attr.field(default=None, init=False)
-    __repo_group = attr.field(default=None, init=False)
-    __repo_name = attr.field(default=None, init=False)
-    __repo_project = attr.field(default=None, init=False)
-    __repo_port = attr.field(default=None, init=False)
+    repo: Optional[GitRepo] = attrs.field(default=None, kw_only=True)
 
-    commit_hash: Optional[str] = attr.field(default=None, kw_only=True)
-    commit_time: Optional[str] = attr.field(default=None, kw_only=True)
+    @property
+    def repo_url(self) -> Optional[str]:
+        return self.repo.url if self.repo else None
+
+    @repo_url.setter
+    def repo_url(self, url: str):
+        self.repo = GitRepo.from_url(url)
+
+    commit_hash: Optional[str] = attrs.field(default=None, kw_only=True)
+    commit_time: Optional[str] = attrs.field(default=None, kw_only=True)
     """
     A human-readable timestamp.
     In the future, this and commit_timestamp should be combined.
     """
-    commit_timestamp: Optional[float] = attr.field(default=None, kw_only=True)
+    commit_timestamp: Optional[float] = attrs.field(default=None, kw_only=True)
     """
     The unix timestamp.
     In the future, this and commit_time should be combined.
     """
 
-    build_name: Optional[str] = attr.field(default=None, kw_only=True)
+    build_name: Optional[str] = attrs.field(default=None, kw_only=True)
     "The name of the build this commit metric came from. Only used for logging."
 
-    image_hash: Optional[str] = attr.field(default=None, kw_only=True)
-
-    @property
-    def repo_url(self):
-        """
-        The full URL for the repo, obtained from build metadata, Image annotations, etc.
-
-        Setting this will parse it and enable using the following fields:
-
-        repo_{protocol,group,name,project}
-
-        git_{server,fqdn}
-        """
-        return self.__repo_url
-
-    @repo_url.setter
-    def repo_url(self, value):
-        # Ensure git URI does not end with "/", issue #590
-        value = value.strip("/")
-        self.__repo_url = value
-        self.__parse_repourl()
-
-    @property
-    def repo_protocol(self):
-        """Returns the Git server protocol"""
-        return self.__repo_protocol
-
-    @property
-    def git_fqdn(self):
-        """Returns the Git server FQDN"""
-        return self.__repo_fqdn
-
-    @property
-    def repo_group(self):
-        return self.__repo_group
-
-    @property
-    def repo_name(self):
-        """Returns the Git repo name, example: myrepo.git"""
-        return self.__repo_name
-
-    @property
-    def repo_project(self):
-        """Returns the Git project name, this is normally the repo_name with '.git' parsed off the end."""
-        return self.__repo_project
-
-    @property
-    def git_server(self):
-        """Returns the Git server FQDN with the protocol"""
-        url = f"{self.__repo_protocol}://{self.__repo_fqdn}"
-
-        if self.__repo_port:
-            url += f":{self.__repo_port}"
-
-        return url
-
-    def __parse_repourl(self):
-        """Parse the repo_url into individual pieces"""
-        logging.debug("repo url = %s", self.__repo_url)
-        if self.__repo_url is None:
-            return
-        parsed = giturlparse.parse(self.__repo_url)
-        logging.debug("Parsed: %s", parsed)
-        if len(parsed.protocols) > 0 and parsed.protocols[0] not in SUPPORTED_PROTOCOLS:
-            raise ValueError("Unsupported protocol %s", parsed.protocols[0])
-        self.__repo_protocol = parsed.protocol
-        # In the case of multiple subgroups the host will be in the pathname
-        # Otherwise, it will be in the resource
-        if parsed.pathname.startswith("//"):
-            self.__repo_fqdn = parsed.pathname.split("/")[2]
-            self.__repo_protocol = parsed.protocols[0]
-        else:
-            self.__repo_fqdn = parsed.resource
-        self.__repo_group = parsed.owner
-        self.__repo_name = parsed.name
-        self.__repo_project = parsed.name
-        self.__repo_port = parsed.port
+    image_hash: Optional[str] = attrs.field(default=None, kw_only=True)
 
     # maps attributes to their location in a `Build`.
     #
