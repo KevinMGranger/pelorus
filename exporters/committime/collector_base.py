@@ -299,7 +299,11 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
         return metric
 
     def _set_repo_url(
-        self, metric: CommitMetric, repo_url: Optional[str], build, errors: list
+        self,
+        metric: CommitMetric,
+        repo_url: Optional[str],
+        build: CommonResourceInstance,
+        errors: list,
     ) -> CommitMetric:
         # Logic to get repo_url, first conditon wins
         # 1. Gather repo_url from the build from spec.source.git.uri
@@ -334,7 +338,9 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
 
         return metric
 
-    def _is_metric_ready(self, namespace: str, metric: CommitMetric, build) -> bool:
+    def _is_metric_ready(
+        self, namespace: str, metric: CommitMetric, build: CommonResourceInstance
+    ) -> bool:
         """
         Determine if a build is ready to be examined.
 
