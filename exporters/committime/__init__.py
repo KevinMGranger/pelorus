@@ -89,6 +89,32 @@ class GitRepo:
 
 
 @attrs.define
+class CommitTimeRetrievalInput:
+    """
+    Information used to retrieve commit time information.
+    Previously, this information wasn't guaranteed to be present,
+    which made the code messy with various checks and exceptions, etc.
+    Or worse, just hoping things weren't None and we wouldn't crash the exporter.
+
+    In addition, it was unclear how exporters should report the commit time:
+    they change it on the metric, but also return the metric,
+    but if they return None, it shouldn't be counted... confusing.
+    This allows us to handle things more consistently.
+    """
+
+    repo: GitRepo
+    commit_hash: str
+
+    @property
+    def repo_url(self) -> Optional[str]:
+        return self.repo.url if self.repo else None
+
+    @repo_url.setter
+    def repo_url(self, url: str):
+        self.repo = GitRepo.from_url(url)
+
+
+@attrs.define
 class CommitMetric:
     name: str = attrs.field()
     annotations: dict[str, str] = attrs.field(factory=dict, kw_only=True)
