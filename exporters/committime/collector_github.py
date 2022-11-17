@@ -4,9 +4,9 @@ import attrs
 import requests
 from attrs import define, field
 
-from committime import CommitMetric
+from committime import CommitTimeRetrievalInput
 from pelorus.config.converters import pass_through
-from pelorus.utils import Url, set_up_requests_session
+from pelorus.utils import Url, get_nested, set_up_requests_session
 from provider_common.github import parse_datetime
 
 from .collector_base import AbstractCommitCollector, UnsupportedGITProvider
@@ -32,10 +32,9 @@ class GitHubCommitCollector(AbstractCommitCollector):
             self.session, self.tls_verify, username=self.username, token=self.token
         )
 
-    def get_commit_time(self, metric: CommitMetric):
-        """Method called to collect data and send to Prometheus"""
-        git_server = metric.git_fqdn
-        # check for gitlab or bitbucket
+    def get_commit_time(self, metric: CommitTimeRetrievalInput):
+        repo = metric.repo
+        git_server = repo.fqdn
         if (
             "gitea" in git_server
             or "gitlab" in git_server
@@ -47,33 +46,35 @@ class GitHubCommitCollector(AbstractCommitCollector):
             )
 
         path = self._path_pattern.format(
-            group=metric.repo_group,
-            project=metric.repo_project,
+            group=repo.group,
+            project=repo.project,
             hash=metric.commit_hash,
         )
         url = self.git_api._replace(path=path).url
         response = self.session.get(url)
         if response.status_code != 200:
             # This will occur when trying to make an API call to non-Github
+            # TODO: add back info for logging context
             logging.warning(
-                "Unable to retrieve commit time for build: %s, hash: %s, url: %s. Got http code: %s"
-                % (
-                    metric.build_name,
-                    metric.commit_hash,
-                    metric.git_fqdn,
-                    str(response.status_code),
-                )
+                "Unable to retrieve commit time for build: %s, hash: %s, url: %s. Got http code: %s",
+                "TODO",
+                metric.commit_hash,
+                repo.fqdn,
+                response.status_code,
             )
-        else:
-            commit = response.json()
-            try:
-                metric.commit_time = commit["commit"]["committer"]["date"]
-                metric.commit_timestamp = parse_datetime(metric.commit_time).timestamp()
-            except Exception:
-                logging.error(
-                    "Failed processing commit time for build %s" % metric.build_name,
-                    exc_info=True,
-                )
-                logging.debug(commit)
-                raise
-        return metric
+            return None
+        commit = response.json()
+        try:
+            commit_time: str = get_nested(
+                commit,
+                "commit.committer.date",
+            )
+            return parse_datetime(commit_time)
+        except Exception:
+            logging.error(
+                "Failed processing commit time for build %s",
+                "TODO",
+                exc_info=True,
+            )
+            logging.debug(commit)
+            raise

@@ -102,6 +102,8 @@ class CommitTimeRetrievalInput:
     This allows us to handle things more consistently.
     """
 
+    # TODO: add back in optional data for logging context?
+
     repo: GitRepo
     commit_hash: str
 
@@ -130,6 +132,7 @@ class CommitMetric:
     def repo_url(self, url: str):
         self.repo = GitRepo.from_url(url)
 
+    # TODO: combine these
     commit_hash: Optional[str] = attrs.field(default=None, kw_only=True)
     commit_time: Optional[str] = attrs.field(default=None, kw_only=True)
     """

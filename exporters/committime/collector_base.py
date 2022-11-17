@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import re
 from abc import abstractmethod
+from datetime import datetime
 from typing import ClassVar, Iterable, Optional
 
 import attrs
@@ -28,7 +29,7 @@ from openshift.dynamic import DynamicClient
 from prometheus_client.core import GaugeMetricFamily
 
 import pelorus
-from committime import CommitMetric, commit_metric_from_build
+from committime import CommitMetric, CommitTimeRetrievalInput, commit_metric_from_build
 from pelorus.config import env_vars
 from pelorus.config.converters import comma_separated, pass_through
 from pelorus.type_compat.openshift import (
@@ -193,7 +194,9 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
         return metrics
 
     @abstractmethod
-    def get_commit_time(self, metric) -> Optional[CommitMetric]:
+    def get_commit_time(
+        self, commit_input: CommitTimeRetrievalInput
+    ) -> Optional[datetime]:
         # This will perform the API calls and parse out the necessary fields into metrics
         pass
 
