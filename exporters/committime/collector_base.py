@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import ClassVar, Iterable, Optional
 
 import attrs
-from attrs import define, field
+from attrs import define, field, frozen
 from openshift.dynamic import DynamicClient
 from prometheus_client.core import GaugeMetricFamily
 
@@ -32,7 +32,8 @@ import pelorus
 from committime import CommitMetric, CommitTimeRetrievalInput, commit_metric_from_build
 from pelorus.config import env_vars
 from pelorus.config.converters import comma_separated, pass_through
-from pelorus.type_compat.openshift import CommonResourceInstance, ResourceInstanceList
+from pelorus.structure import converter, nested
+from pelorus.type_compat.openshift import CommonResourceInstance, ItemList, R
 from pelorus.utils import Url, get_nested
 
 # Custom annotations env for the Build
@@ -50,6 +51,11 @@ class UnsupportedGITProvider(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(message)
+
+
+@frozen
+class Build(CommonResourceInstance):
+    strategy: str = field(metadata=nested("spec.strategy.type"))
 
 
 @define(kw_only=True)
@@ -143,11 +149,11 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
         return watched_namespaces
 
     def _get_openshift_obj_by_app(
-        self, openshift_obj: ResourceInstanceList[CommonResourceInstance]
-    ) -> dict[str, list[CommonResourceInstance]]:
+        self, openshift_obj: ItemList[R]
+    ) -> dict[str, list[R]]:
         app_label = self.app_label
 
-        items_by_app: dict[str, list[CommonResourceInstance]] = {}
+        items_by_app: dict[str, list[R]] = {}
 
         for item in openshift_obj.items:
             app = item.metadata.labels.get(app_label)
@@ -183,6 +189,8 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
             # only use builds that have the app label
             builds = v1_builds.get(namespace=namespace, label_selector=app_label)
 
+            builds = converter.structure(builds, ItemList[Build])
+
             builds_by_app = self._get_openshift_obj_by_app(builds)
 
             if builds_by_app:
@@ -197,27 +205,25 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
         # This will perform the API calls and parse out the necessary fields into metrics
         pass
 
-    def get_metrics_from_apps(
-        self, apps: dict[str, list[CommonResourceInstance]], namespace: str
-    ):
+    def get_metrics_from_apps(self, apps: dict[str, list[Build]], namespace: str):
         """Expects a sorted array of build data sorted by app label"""
         metrics = []
         for app in apps:
 
             builds = apps[app]
-            jenkins_builds = list(
-                filter(lambda b: b.spec.strategy.type == "JenkinsPipeline", builds)
-            )
-            code_builds = list(
-                filter(
-                    lambda b: b.spec.strategy.type in ["Source", "Binary", "Docker"],
-                    builds,
-                )
-            )
+            jenkins_builds = [
+                build for build in builds if build.strategy == "JenkinsPipeline"
+            ]
+            code_builds = [
+                build
+                for build in builds
+                if build.strategy in {"Source", "Binary", "Docker"}
+            ]
+
             # assume for now that there will only be one repo/branch per app
             # For jenkins pipelines, we need to grab the repo data
             # then find associated s2i/docker builds from which to pull commit & image data
-            repo_url = self.get_repo_from_jenkins(jenkins_builds)
+            repo_url = self.get_repo_from_jenkins(jenkins_builds)  # type: ignore # removing jenkins support soon
             logging.debug("Repo URL for app %s is currently %s" % (app, repo_url))
 
             for build in code_builds:

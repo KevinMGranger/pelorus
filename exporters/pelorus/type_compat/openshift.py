@@ -46,10 +46,12 @@ class CommonResourceInstance:
     metadata: Metadata
 
 
-R = TypeVar("R")
+R = TypeVar("R", bound=CommonResourceInstance)
+
+Item = TypeVar("Item")
 
 
 @attrs.define
-class ResourceInstanceList(Generic[R]):
+class ItemList(Generic[Item]):
     "We work with lists a lot. This lets us easily mark what they contain."
-    items: list[R]
+    items: list[Item]

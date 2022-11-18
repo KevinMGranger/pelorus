@@ -93,3 +93,7 @@ def set_up_converter(conv: cattrs.Converter):
     "Set the given converter to type check and handle attrs classes with nested attributes."
     _register_primitive_type_checks(conv)
     conv.register_structure_hook_func(attrs.has, _handle_attrs_class)
+
+
+converter = cattrs.Converter()
+set_up_converter(converter)

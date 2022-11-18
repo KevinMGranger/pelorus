@@ -4,6 +4,8 @@ from cattrs import ClassValidationError, Converter
 
 from pelorus.structure import nested, set_up_converter
 
+# TODO: test inheritance
+
 # TODO: pytest fixture or setup step
 converter = Converter()
 set_up_converter(converter)

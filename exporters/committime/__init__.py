@@ -132,8 +132,8 @@ class CommitMetric:
     def repo_url(self, url: str):
         self.repo = GitRepo.from_url(url)
 
-    # TODO: combine these
     commit_hash: Optional[str] = attrs.field(default=None, kw_only=True)
+    # TODO: combine these
     commit_time: Optional[str] = attrs.field(default=None, kw_only=True)
     """
     A human-readable timestamp.
