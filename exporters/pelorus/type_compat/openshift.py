@@ -11,6 +11,21 @@ from typing import Generic, TypeVar
 import attrs
 
 
+# TODO work with existing ones
+@attrs.define
+class CommittimeInput:
+    image_hash: str = attrs.field(
+        metadata=dict(nested_path="status.output.to.imageDigest")
+    )
+
+    commit_hash: str = attrs.field(
+        metadata=dict(nested_path="spec.revision.git.commit")
+    )
+
+
+# TODO: are these necessary now that we can do nested items?
+
+
 @attrs.define
 class Metadata:
     """
@@ -31,28 +46,10 @@ class CommonResourceInstance:
     metadata: Metadata
 
 
-R = TypeVar("R", bound=CommonResourceInstance)
+R = TypeVar("R")
 
 
 @attrs.define
-class CommonResourceInstanceList(CommonResourceInstance, Generic[R]):
+class ResourceInstanceList(Generic[R]):
     "We work with lists a lot. This lets us easily mark what they contain."
     items: list[R]
-
-
-@attrs.define
-class Build(CommonResourceInstance):
-    @attrs.define
-    class Output:
-        @attrs.define
-        class To:
-            pass
-
-    # spec: BuildSpec
-
-
-# __all__ = [
-#     "Metadata",
-#     "CommonResourceInstance",
-#     "CommonResourceInstanceList",
-# ]
