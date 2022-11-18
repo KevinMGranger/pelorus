@@ -32,10 +32,7 @@ import pelorus
 from committime import CommitMetric, CommitTimeRetrievalInput, commit_metric_from_build
 from pelorus.config import env_vars
 from pelorus.config.converters import comma_separated, pass_through
-from pelorus.type_compat.openshift import (
-    CommonResourceInstance,
-    CommonResourceInstanceList,
-)
+from pelorus.type_compat.openshift import CommonResourceInstance, ResourceInstanceList
 from pelorus.utils import Url, get_nested
 
 # Custom annotations env for the Build
@@ -146,7 +143,7 @@ class AbstractCommitCollector(pelorus.AbstractPelorusExporter):
         return watched_namespaces
 
     def _get_openshift_obj_by_app(
-        self, openshift_obj: CommonResourceInstanceList[CommonResourceInstance]
+        self, openshift_obj: ResourceInstanceList[CommonResourceInstance]
     ) -> dict[str, list[CommonResourceInstance]]:
         app_label = self.app_label
 

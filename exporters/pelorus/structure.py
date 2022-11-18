@@ -2,6 +2,11 @@
 Declarative structuring and typechecking.
 
 Useful for checking that all necessary aspects of a structure from OpenShift are present and correct.
+
+TODO: add default support
+TODO: do we handle defaults on any BadAttribute error?
+      or just lop off one side and check for its absence in the last part?
+      I think we can just inspect that exception since it has the slice of the path.
 """
 from typing import Any, Optional, TypeVar, cast
 
@@ -23,7 +28,7 @@ def nested(path: str) -> dict[str, Any]:
     return {_NESTED_PATH_KEY: path}
 
 
-def _is_attrs_class(cls: type) -> Optional[type[attr.AttrsInstance]]:
+def _is_attrs_class(cls: type) -> Optional[type["attr.AttrsInstance"]]:
     """
     Return the class if it is an attrs class, else None.
 
@@ -42,6 +47,7 @@ def _type_check(src: Any, target: type[T]) -> T:
         return src
 
 
+# TODO: why does this not work when just registering?
 def _register_primitive_type_checks(conv: cattrs.Converter):
     "Register structure hooks for some standard primitives (int, float, str, bool)"
     for type_ in [int, float, str, bool]:
@@ -66,6 +72,11 @@ def _handle_attrs_class(src: dict[str, Any], cls_: type[A]) -> A:
 
         try:
             value = get_nested(src, nested) if nested else src[field.name]
+            for primitive in [int, float, str, bool]:
+                if issubclass(field_type, primitive):
+                    value = _type_check(value, field_type)
+                    break
+
             class_kwargs[field.name] = cattrs.structure(value, field_type)
         except Exception as e:
             field_errors.append(e)
