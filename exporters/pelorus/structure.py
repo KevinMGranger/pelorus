@@ -3,7 +3,6 @@ Declarative structuring and typechecking.
 
 Useful for checking that all necessary aspects of a structure from OpenShift are present and correct.
 
-TODO: add default support
 TODO: do we handle defaults on any BadAttribute error?
       or just lop off one side and check for its absence in the last part?
       I think we can just inspect that exception since it has the slice of the path.
@@ -14,7 +13,7 @@ import attr
 import attrs
 import cattrs
 
-from pelorus.utils import get_nested
+from pelorus.utils import BadAttributePathError, get_nested
 
 # metadata
 _NESTED_PATH_KEY = "__pelorus_structure_nested_path"
@@ -78,6 +77,11 @@ def _handle_attrs_class(src: dict[str, Any], cls_: type[A]) -> A:
                     break
 
             class_kwargs[field.name] = cattrs.structure(value, field_type)
+        except (BadAttributePathError, KeyError) as e:
+            if field.default is not attrs.NOTHING:
+                pass
+            else:
+                field_errors.append(e)
         except Exception as e:
             field_errors.append(e)
 

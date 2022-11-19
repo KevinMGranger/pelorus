@@ -73,7 +73,6 @@ def test_nested_field_type_err():
     assert e.value.subgroup(lambda e: isinstance(e, TypeError)) is not None
 
 
-@pytest.mark.xfail(reason="defaults not implemented yet")
 def test_default():
     @define
     class Default:
