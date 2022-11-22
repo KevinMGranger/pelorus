@@ -32,6 +32,7 @@ from typing import (
     Literal,
     Mapping,
     Optional,
+    Sequence,
     TypeVar,
     Union,
     cast,
@@ -63,7 +64,7 @@ DEFAULT_VAR_KEYWORD = "default"
 @overload
 def get_nested(
     root: Mapping[str, T],
-    path: Union[list[str], str],
+    path: Union[Sequence[str], str],
     *,
     name: Optional[str] = None,
 ) -> T:
@@ -73,7 +74,7 @@ def get_nested(
 @overload
 def get_nested(
     root: Mapping[str, T],
-    path: Union[list[str], str],
+    path: Union[Sequence[str], str],
     *,
     default: U,
     name: Optional[str] = None,
@@ -83,7 +84,7 @@ def get_nested(
 
 def get_nested(
     root: Mapping[str, T],
-    path: Union[list[Any], str],
+    path: Union[Sequence[str], str],
     *,
     default: Union[U, Literal[NoDefault.NO_DEFAULT]] = NoDefault.NO_DEFAULT,
     name: Optional[str] = None,
@@ -111,9 +112,8 @@ def get_nested(
     https://www.python.org/dev/peps/pep-0657/
     """
     item = root
-    if isinstance(path, str):
-        # filter out leading dot (or accidental double dots, technically)
-        path = [part for part in path.split(".") if part]
+    path = split_path(path)
+
     for i, key in enumerate(path):
         try:
             item = item[key]  # type: ignore
@@ -132,6 +132,24 @@ def get_nested(
     return item
 
 
+def split_path(path: Union[str, Sequence[str]]) -> Sequence[str]:
+    if isinstance(path, str):
+        # `if part` filters out leading dot (or accidental double dots, technically)
+        return tuple(part for part in path.split(".") if part)
+    else:
+        return path
+
+
+def format_path(path: Sequence[str]) -> str:
+    formatted = ""
+    for part in path:
+        if "." in part:
+            formatted += f"[{part}]"
+        else:
+            formatted += f".{part}"
+    return formatted
+
+
 @attrs.frozen
 class BadAttributePathError(Exception):
     """
@@ -145,7 +163,7 @@ class BadAttributePathError(Exception):
     """
 
     root: Any
-    path: list[Any]
+    path: Sequence[str]
     path_slice: slice
     value: Any
     root_name: Optional[str] = None
