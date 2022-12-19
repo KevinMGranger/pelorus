@@ -61,6 +61,36 @@ spec:
                           exporter_type: < deploytime, committime, failure >
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
+                properties:
+                  instances:
+                    description: >-
+                      Exporter instances configuration. More information:
+                      https://pelorus.readthedocs.io/en/latest/Configuration/
+                    type: array
+                    items:
+                      type: object
+                    properties:
+                      app_name:
+                        description: 'Exporter name.'
+                        type: string
+                      enabled:
+                        description: "If set to false, exporter won't be provisioned."
+                        type: boolean
+                      env_from_configmaps:
+                        description: >-
+                          ConfigMap name(s) with configuration used by the
+                          exporter instance.
+                        type: object
+                      env_from_secrets:
+                        description: >-
+                          Secret name(s) with secrets used by the exporter
+                          instance.
+                        type: object
+                      exporter_type:
+                        description: >-
+                          Exporter type as in the:
+                          https://pelorus.readthedocs.io/en/latest/Configuration/#configuring-exporters-overview
+                        type: string
               prometheus_retention:
                 description: >-
                   Prometheus Retention time. More information:
