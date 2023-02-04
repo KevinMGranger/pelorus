@@ -59,6 +59,7 @@ class ResourceIdentifier:
         return ResourceKind(self.apiVersion, self.kind)
 
 
+# these help us avoid accidentally referring to the wrong type of resource
 PodId = NewType("PodId", ResourceIdentifier)
 ReplicatorId = NewType("ReplicatorId", ResourceIdentifier)
 OwnedPods = NewType("OwnedPods", set[PodId])
@@ -68,6 +69,8 @@ Pods owned by a replicator.
 BuildId = NewType("BuildId", ResourceIdentifier)
 
 # endregion
+
+# region: troubleshooting
 
 
 @frozen
@@ -301,6 +304,7 @@ reports_by_name = dict(
     deploytime=DeploytimeTroubleshootingReport,
     committime=CommittimeTroubleshootingReport,
 )
+"Maps CLI exporter name to its report type"
 
 # endregion
 
