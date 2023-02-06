@@ -9,3 +9,7 @@ components:
       autoBuild: true #?
       dockerfile:
         uri: dev-spaces.Containerfile
+  - name: pelorus-dev-container
+    container:
+      image: pelorus-dev:latest
+      mountSources: true
