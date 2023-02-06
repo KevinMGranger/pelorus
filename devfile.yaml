@@ -2,19 +2,11 @@ schemaVersion: 2.2.0
 metadata:
   name: pelorus-dev
   version: 0.0.1
-starterProjects:
-  - name: flask-example
-    description:
-      'Flask is a web framework, it’s a Python module that lets you develop web applications easily.
-      It’s has a small and easy-to-extend core: it’s a microframework that doesn’t include an ORM (Object Relational Manager) or such features.'
-    git:
-      remotes:
-        origin: https://github.com/devfile-samples/python-ex
 components:
   - name: py
     container:
       image: registry.access.redhat.com/ubi9/python-39:latest
-      args: ['tail', '-f', '/dev/null']
+      args: [cd, /projects, "&&", python, -m, http.server, "8080"]
       mountSources: true
       endpoints:
         - name: http-python
@@ -25,19 +17,19 @@ components:
       env:
         - name: DEBUG_PORT
           value: '5858'
-  - name: build
-    image:
-      imageName: python-image:latest
-      dockerfile:
-        uri: docker/Dockerfile
-        buildContext: .
-        rootRequired: false
-  - name: deploy
-    kubernetes:
-      uri: kubernetes/deploy.yaml
-      endpoints:
-      - name: http-8081
-        targetPort: 8081
+  # - name: build
+  #   image:
+  #     imageName: python-image:latest
+  #     dockerfile:
+  #       uri: docker/Dockerfile
+  #       buildContext: .
+  #       rootRequired: false
+  # - name: deploy
+  #   kubernetes:
+  #     uri: kubernetes/deploy.yaml
+  #     endpoints:
+  #     - name: http-8081
+  #       targetPort: 8081
 commands:
   - id: pip-install-requirements
     exec:
