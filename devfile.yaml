@@ -5,7 +5,7 @@ metadata:
 components:
   - name: pelorus-dev-image
     image:
-      imageName: image-registry.openshift-image-registry.svc:5000pelorus-dev:latest
+      imageName: image-registry.openshift-image-registry.svc:5000/pelorus-dev:latest
       autoBuild: true #?
       dockerfile:
         uri: dev-spaces.Containerfile
