@@ -4,7 +4,8 @@ metadata:
   version: "0.0.1"
 components:
   - name: podman
-    container:
-      image: registry.access.redhat.com/ubi9/python-39
-      memoryLimit: 6Gi
-      mountSources: true
+    image:
+      imageName: pelorus-dev:latest
+      autoBuild: true #?
+      dockerfile:
+        uri: dev-spaces.Containerfile
