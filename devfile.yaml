@@ -2,10 +2,14 @@ schemaVersion: "2.2.0"
 metadata:
   name: pelorus-dev
   version: "0.0.1"
-components:
-  - name: podman
-    image:
-      imageName: pelorus-dev:latest
-      autoBuild: true #?
-      dockerfile:
-        uri: dev-spaces.Containerfile
+parent:
+  id: python
+  registryUrl: https://registry.devfile.io/
+  version: 3.0.0
+# components:
+#   - name: podman
+#     image:
+#       imageName: pelorus-dev:latest
+#       autoBuild: true #?
+#       dockerfile:
+#         uri: dev-spaces.Containerfile
